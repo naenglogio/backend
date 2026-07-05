@@ -7,6 +7,7 @@ dependencies = [
     "uvicorn[standard]",
     "sqlalchemy>=2.0",
     "asyncpg",
+    "psycopg[binary]",
     "alembic",
     "pydantic-settings",
     "python-dotenv",

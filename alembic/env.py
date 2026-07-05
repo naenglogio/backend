@@ -5,9 +5,20 @@ from sqlalchemy import pool
 
 from alembic import context
 
+import sys
+import os
+sys.path.append(os.getcwd())
+from app.core.config import settings
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Alembic은 동기 엔진을 사용하므로 asyncpg URL을 psycopg용으로 변환한다.
+config.set_main_option(
+    "sqlalchemy.url",
+    settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg"),
+)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
