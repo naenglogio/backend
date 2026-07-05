@@ -1,0 +1,21 @@
+﻿# 환경변수
+.env
+docker-compose.override.yml
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# 로그
+*.log
+
+# 에디터
+.vscode/
+.idea/
+.cursor/
+
+# OS
+.DS_Store
