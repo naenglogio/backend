@@ -4,14 +4,16 @@ FastAPI + PostgreSQL(pgvector) + SQLAlchemy 2.0 + Alembic
 
 ## 로컬 개발 환경 세팅
 
-1. `.env.example`을 복사해서 `.env` 생성
-2. Docker 이미지 빌드 및 실행
-3. 마이그레이션 적용
+1. .env.example을 복사해서 .env 생성
+2. docker compose up -d
+3. docker compose exec api alembic upgrade head
 4. http://localhost:8000/health 접속해서 확인
 
 ## Docker 명령어
 
-### 빌드 및 실행
+### 최초 실행 (또는 Dockerfile / 의존성 변경 후)
+
+이미지를 새로 빌드한 뒤 컨테이너를 띄웁니다.
 
 ```bash
 docker compose build
@@ -19,10 +21,24 @@ docker compose up -d
 docker compose exec api alembic upgrade head
 ```
 
-한 번에 빌드하고 실행하려면:
+한 줄로 빌드+실행하려면:
 
 ```bash
 docker compose up -d --build
+docker compose exec api alembic upgrade head
+```
+
+### 이미 빌드된 이미지가 있을 때
+
+빌드 없이 컨테이너만 다시 실행합니다.
+
+```bash
+docker compose up -d
+```
+
+마이그레이션이 아직 안 되어 있거나 새로 추가된 경우:
+
+```bash
 docker compose exec api alembic upgrade head
 ```
 
