@@ -71,16 +71,16 @@ Backend는 상세페이지 크롤링, OCR 실행, 식약처 PDF 파싱을 수행
 
 구현 대상은 다음 8개 테이블이다.
 
-| 테이블 | 역할 |
-|---|---|
-| `users` | 사용자, 권한, 약관 및 알림 동의 |
-| `user_devices` | FCM 디바이스 토큰 |
-| `categories` | 표준 식품 카테고리 |
-| `foods` | 표준 식재료 Master |
-| `products` | 최종 정제 상품 |
-| `product_freshness_profiles` | 최종 소비기한·보관방법 프로필 |
-| `ingredients` | 사용자 냉장고 식재료 |
-| `notifications` | 소비기한 알림 이력 |
+| 테이블                       | 역할                            |
+| ---------------------------- | ------------------------------- |
+| `users`                      | 사용자, 권한, 약관 및 알림 동의 |
+| `user_devices`               | FCM 디바이스 토큰               |
+| `categories`                 | 표준 식품 카테고리              |
+| `foods`                      | 표준 식재료 Master              |
+| `products`                   | 최종 정제 상품                  |
+| `product_freshness_profiles` | 최종 소비기한·보관방법 프로필   |
+| `ingredients`                | 사용자 냉장고 식재료            |
+| `notifications`              | 소비기한 알림 이력              |
 
 `raw_products`, `shelf_life_reference`는 서비스 DB에 만들지 않는다.
 
@@ -146,11 +146,11 @@ PostgreSQL
 
 ## 9. 역할 분담
 
-| 담당자 | 담당 기능 | 문서 위치 |
-|---|---|---|
-| 재성 | 메인 3D, 카메라 인식, 식재료 등록·상세 | `dev_docs/jaseong/` |
-| 선영 | 식재료 목록, 알림, 주변 마트, 맞춤 레시피 | `dev_docs/seonyoung/` |
-| 우희 | 회원가입·로그인, 내정보, AI 챗봇 | `dev_docs/woohee/` |
+| 담당자 | 담당 기능                                 | 문서 위치             |
+| ------ | ----------------------------------------- | --------------------- |
+| 재성   | 메인 3D, 카메라 인식, 식재료 등록·상세    | `dev_docs/jaeseong/`  |
+| 선영   | 식재료 목록, 알림, 주변 마트, 맞춤 레시피 | `dev_docs/seonyoung/` |
+| 우희   | 회원가입·로그인, 내정보, AI 챗봇          | `dev_docs/woohee/`    |
 
 ## 10. 공통 API Prefix와 응답
 
