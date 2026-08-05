@@ -15,11 +15,10 @@ app/
 │  ├─ config.py
 │  ├─ logging.py
 │  └─ exceptions.py
-└─ schemas/
-   └─ common.py
+└─ domains/
 ```
 
-실제 저장소에 유사 파일이 있으면 중복 생성하지 않고 기존 구조를 확장한다.
+기존 `app/core/config.py`를 보존하고 확장한다. 공통 HTTP schema가 필요하면 `app/api` 아래에 두며, 도메인 schema는 이후 `app/domains/{domain}/schema.py`에 둔다. 최상위 `app/schemas`는 만들지 않는다.
 
 ## 설정 항목
 
@@ -42,6 +41,7 @@ app/
 5. `/health`는 프로세스 생존 확인으로 유지한다.
 6. `/ready`는 DB 연결 준비 여부를 확인하게 하되 DB 단계 완료 후 활성화할 수 있게 구성한다.
 7. 로컬 프런트엔드 origin만 허용하고 production wildcard를 기본값으로 두지 않는다.
+8. `core`에는 비즈니스 규칙이나 특정 도메인 model을 넣지 않는다.
 
 ## 공통 오류 응답 예시
 
@@ -72,7 +72,8 @@ docker compose logs api
 ## AI 지시문
 
 ```text
-FastAPI 공통 코어만 구현해. 인증이나 팀원 기능 Router는 만들지 마.
+FastAPI 공통 코어만 구현해. 기존 app/core를 확장하고 인증이나 팀원 기능 Router는 만들지 마.
+최상위 app/schemas, app/services, app/repositories를 만들지 마.
 기존 /health 호환성을 유지하고 설정·로깅·예외·CORS·앱 초기화 구조를 추가해.
 환경변수 기본값과 production 안전성을 구분하고 테스트 가능한 구조로 작성해.
 ```

@@ -20,6 +20,7 @@
 - migration 실행 주체
 - test DB 분리
 - named volume 보존 정책
+- API 컨테이너에서 batch command를 같은 설정과 DB 연결로 실행할 수 있는지
 
 ## 표준 최초 실행
 
@@ -43,6 +44,7 @@ docker compose up -d
 docker compose logs -f api
 docker compose exec api pytest -q
 docker compose exec api ruff check .
+docker compose run --rm api python -m app.batch.runner --help
 docker compose down
 ```
 
@@ -55,6 +57,7 @@ docker compose down
 - 새 clone에서 수동 Python 가상환경 없이 API·DB·migration·seed가 실행된다.
 - Windows와 macOS/Linux 명령 차이가 문서화됐다.
 - 데이터 보존/삭제 명령이 명확히 구분됐다.
+- 별도 크롤러를 Compose에 억지로 합치지 않고 백엔드 batch entrypoint만 실행 가능하다.
 
 ## AI 지시문
 

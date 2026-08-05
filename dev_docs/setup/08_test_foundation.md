@@ -9,9 +9,10 @@
 ```text
 tests/
 ├─ conftest.py
-├─ unit/
-├─ integration/
-├─ api/
+├─ unit/domains/
+├─ integration/domains/
+├─ api/domains/
+├─ batch/
 └─ fixtures/
 ```
 
@@ -27,6 +28,7 @@ tests/
 8. ingredient soft delete 및 deletion reason 규칙
 9. seed idempotency
 10. API Router 등록과 OpenAPI 생성
+11. 배치가 도메인 Service를 호출하고 동일 업무 규칙을 중복하지 않는지 검증
 
 ## DB 테스트 전략
 
@@ -62,5 +64,6 @@ pytest tests/integration -q
 ```text
 PostgreSQL 호환성을 유지하는 테스트 기반을 만들어.
 실제 개발 DB를 사용하지 말고 테스트 DB와 dependency override를 사용해.
-공통 기반, migration, soft delete, seed를 우선 검증하고 팀원 기능 테스트는 추가하지 마.
+공통 기반, migration, soft delete, seed를 우선 검증하고 테스트를 domain과 batch 책임에 맞춰 배치해.
+팀원 기능 구현 자체는 추가하지 마.
 ```

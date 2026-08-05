@@ -1,14 +1,16 @@
+import os
+import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
-import sys
-import os
 sys.path.append(os.getcwd())
+# 도메인 model registry를 로드해 각 도메인의 model.py가 Base.metadata에 등록되게 한다.
+# (지금은 등록된 도메인 모델이 없어도 import 자체는 안전하다.)
+import app.domains  # noqa: E402,F401
 from app.core.config import settings
+from app.db.base import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,16 +27,27 @@ config.set_main_option(
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+
+def include_object(
+    object: object, name: str | None, type_: str, reflected: bool, compare_to: object
+) -> bool:
+    """CHECK 제약은 autogenerate 비교 대상에서 뺀다.
+
+    Enum(native_enum=False, create_constraint=True)가 만드는 CHECK 제약은 SQLAlchemy가
+    렌더링한 텍스트와 PostgreSQL이 reflect한 텍스트 표현이 미묘하게 달라, 실제로는
+    바뀐 게 없어도 autogenerate가 매번 drop/create로 오탐지한다. enum 값 추가/삭제 같은
+    CHECK 제약 변경은 항상 사람이 직접 migration을 작성해서 반영한다.
+    """
+    if type_ == "check_constraint":
+        return False
+    return True
 
 
 def run_migrations_offline() -> None:
@@ -55,6 +68,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -76,7 +90,7 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, target_metadata=target_metadata, include_object=include_object
         )
 
         with context.begin_transaction():

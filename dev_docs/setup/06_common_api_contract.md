@@ -20,6 +20,19 @@ Router → Service → Repository → Database
 
 단순 조회까지 불필요한 추상화를 강제하지 않되 Router에서 복잡한 ORM 질의를 직접 작성하지 않는다.
 
+## 도메인 내부 구조
+
+```text
+app/domains/{domain}/
+├─ model.py
+├─ schema.py
+├─ repository.py
+├─ service.py
+└─ router.py
+```
+
+필요한 파일만 만든다. `app/api/router.py`는 도메인 Router를 조립하며 도메인 업무 규칙을 구현하지 않는다.
+
 ## 공통 규약
 
 1. 버전 prefix는 `/api/v1`을 사용한다.
@@ -51,6 +64,7 @@ class PageMeta(BaseModel):
 - 공통 응답/오류 schema를 만든다.
 - OpenAPI tag와 endpoint naming 규칙을 문서화한다.
 - 아직 팀원 기능 endpoint는 구현하지 않는다.
+- 최상위 `services`, `repositories`, `schemas`, `models` 폴더는 만들지 않는다.
 
 ## 완료 조건
 
@@ -61,7 +75,8 @@ class PageMeta(BaseModel):
 ## AI 지시문
 
 ```text
-팀 기능 자체는 구현하지 말고 공통 Router, schema, dependency 경계만 구성해.
+팀 기능 자체는 구현하지 말고 공통 Router와 dependency 경계만 구성해.
+향후 기능 계층은 app/domains/{domain} 내부에 두고 app/api는 Router 조립만 담당하게 해.
 인증을 가짜로 완성한 것처럼 만들지 말고 교체 가능한 current-user dependency 계약만 정의해.
 샘플 endpoint가 필요하면 테스트 전용 또는 명확한 예제로 제한해.
 ```

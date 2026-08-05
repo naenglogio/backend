@@ -12,3 +12,48 @@ dependencies = [
     "pydantic-settings",
     "python-dotenv",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["app", "tests"]
+# 문서 내 예시 코드 블록, Alembic이 자동 생성하는 migration 스크립트는 포맷/린트 대상이 아니다.
+# (Alembic 템플릿은 한 줄짜리 op 호출 스타일을 쓰고, post_write_hooks로 ruff를 붙이려면
+# Docker 이미지에 dev 의존성 설치가 선행돼야 해서 9~10단계로 미룬다.)
+extend-exclude = ["dev_docs", "alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+# pydantic-settings의 필수 필드는 .env/환경변수로 채워지므로 생성자 인자 누락으로
+# 오탐(call-arg)되는 것을 pydantic 공식 mypy 플러그인으로 방지한다.
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+# 앱 계층이 아직 얇아 strict 모드는 점진 적용한다. 도메인 코드가 늘어나면 강화한다.
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

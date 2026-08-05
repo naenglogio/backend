@@ -21,6 +21,8 @@
 3. 설정 변수, 서비스 이름, 포트, DB 드라이버, Python 버전을 표로 정리한다.
 4. 미구현 항목과 팀원 기능 개발의 공통 의존성을 구분한다.
 5. 저장소 루트에 중복 문서를 만들지 말고 조사 결과는 이 문서의 `실행 결과` 절 또는 별도의 `dev_docs/setup/current_baseline.md`에 기록한다.
+6. `app/batch`, `app/core`, `app/domains`의 현재 파일과 의도를 확인하고 보존 대상으로 표시한다.
+7. 최상위 계층형 구조와 도메인 단위 구조를 혼합하고 있는 파일이 있는지 확인한다.
 
 ## 반드시 확인할 기준
 
@@ -32,6 +34,8 @@
 - Alembic이 DB URL을 어떤 방식으로 변환하는지
 - `target_metadata` 상태
 - 테스트 및 CI 파일 존재 여부
+- `app/core/config.py`, `app/domains/__init__.py`, `app/batch/.gitkeep` 존재 여부
+- 도메인별 Router를 조립하는 현재 위치
 
 ## 이 단계에서 하지 않을 일
 
@@ -40,6 +44,7 @@
 - migration 실행
 - API 기능 구현
 - Docker 서비스 변경
+- `app/batch`, `app/core`, `app/domains` 이동 또는 삭제
 
 ## 검증 명령
 
@@ -66,5 +71,6 @@ Windows에서 `curl` 별칭 문제가 있으면 브라우저 또는 `Invoke-Rest
 ```text
 이 단계는 조사 단계다. 저장소를 변경하지 말고 현재 구조, 실행 방식, 설정값,
 누락된 공통 기반을 분석해 current_baseline.md 초안을 작성해.
+app/batch, app/core, app/domains는 의도된 기존 구조로 간주하고 보존해.
 명시된 검증 명령을 실행하되 실제 데이터나 볼륨을 삭제하지 마.
 ```

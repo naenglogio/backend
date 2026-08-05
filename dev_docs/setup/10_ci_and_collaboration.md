@@ -21,6 +21,7 @@
 - 팀원 기능 branch: `feat/{owner}/{feature}`
 - 공통 세팅을 먼저 merge한 뒤 각 기능 branch는 최신 `main`을 기준으로 시작한다.
 - migration 파일명은 목적을 드러내고 동시에 여러 migration PR이 생기면 revision 충돌을 확인한다.
+- 팀원 기능은 담당 `app/domains/{domain}`을 중심으로 변경하고 공통 `core`, `db`, `api`, `batch` 변경은 영향 범위를 공유한다.
 
 ## PR 체크리스트
 
@@ -41,6 +42,8 @@
 - SNS 로그인은 현재 범위에서 제외한다.
 
 공통 파일 변경이 필요한 기능은 소유자가 독단 변경하지 않고 영향받는 팀원과 API/DB 계약을 확인한다.
+
+도메인 소유권은 파일 독점권이 아니라 변경 조율 기준이다. 여러 기능이 사용하는 `ingredients`, `users`, `notifications` 계약은 PR에서 영향받는 담당자 검토를 받는다.
 
 ## 완료 조건
 

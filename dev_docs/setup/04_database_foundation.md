@@ -11,7 +11,7 @@ app/db/
 ├─ base.py
 ├─ session.py
 └─ naming.py
-app/models/
+app/domains/
 └─ __init__.py
 alembic/env.py
 ```
@@ -33,7 +33,7 @@ alembic/env.py
 4. FastAPI용 `get_db_session()` dependency를 제공한다.
 5. connection pool 설정은 환경변수로 조절 가능하게 하되 로컬 기본값은 단순하게 둔다.
 6. Alembic `target_metadata`를 Base metadata에 연결한다.
-7. `app.models`를 import하여 모델 등록 누락이 발생하지 않게 한다.
+7. `app.domains` 아래 각 도메인의 model을 명시적으로 import하는 model registry를 구성해 등록 누락을 방지한다.
 8. `/ready`에서 `SELECT 1`로 DB 연결을 확인한다.
 
 ## 금지사항
@@ -42,6 +42,8 @@ alembic/env.py
 - 요청 전역 session 공유
 - 비동기 endpoint에서 sync DB 호출
 - migration 없이 스키마 자동 변경
+- 최상위 `app/models` 생성
+- Alembic model 탐색을 위해 무분별한 wildcard import 사용
 
 ## 검증
 
@@ -61,7 +63,8 @@ curl http://localhost:8000/ready
 ## AI 지시문
 
 ```text
-SQLAlchemy 2 async 기반의 Base, engine, session dependency를 구현하고 Alembic metadata를 연결해.
+SQLAlchemy 2 async 기반의 Base, engine, session dependency를 app/db에 구현하고 Alembic metadata를 연결해.
+ORM model은 app/domains/{domain}/model.py에 위치한다는 전제로 registry를 구성하고 app/models는 만들지 마.
 런타임 asyncpg와 migration psycopg의 역할을 혼합하지 마.
 create_all은 사용하지 말고, 연결 검증과 세션 종료를 테스트해.
 ```

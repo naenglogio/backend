@@ -29,6 +29,41 @@
 7. 비밀값과 실제 `.env`는 커밋하지 않는다.
 8. 각 단계 완료 시 변경 파일, 설계 결정, 실행 명령, 테스트 결과, 남은 위험을 보고한다.
 
+### 기존 아키텍처 보존 원칙
+
+이 저장소는 `app/domains`를 중심으로 기능을 응집하는 도메인 단위 구조를 사용한다.
+
+- 기존 `app/core`, `app/domains`, `app/batch`를 삭제하거나 다른 구조로 대체하지 않는다.
+- 최상위 `app/models`, `app/schemas`, `app/services`, `app/repositories`를 새로 만들지 않는다.
+- 기능별 `model`, `schema`, `repository`, `service`, `router`는 `app/domains/{domain}` 내부에 둔다.
+- DB 연결, ORM Base, 세션 같은 기술 공통 요소만 `app/db`에 둔다.
+- 도메인 Router 조립과 공통 HTTP dependency만 `app/api`에 둔다.
+- 정기 작업, 소비기한 알림 실행, 정제 결과 적재 orchestration은 `app/batch`에 둔다.
+- 크롤링·OCR·PDF 정제 자체는 별도 데이터 파이프라인 저장소의 책임이며 백엔드 `batch`에 복제하지 않는다.
+- 기존 구조와 지시문이 충돌하면 구현을 중단하고 저장소 구조를 우선 확인한다.
+
+### 목표 디렉터리 구조
+
+```text
+app/
+├─ main.py
+├─ api/
+├─ core/
+├─ db/
+├─ domains/
+│  ├─ users/
+│  ├─ devices/
+│  ├─ categories/
+│  ├─ foods/
+│  ├─ products/
+│  ├─ freshness/
+│  ├─ ingredients/
+│  └─ notifications/
+└─ batch/
+```
+
+빈 계층 파일을 일괄 생성하지 않고 실제 책임이 생기는 단계에서 추가한다.
+
 ## 4. 실행 순서
 
 | 순서 | 문서 | 완료 결과 |

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker info *)",
+      "Bash(uv --version)",
+      "Bash(pip --version)",
+      "Bash(uv python *)",
+      "Bash(uv lock *)",
+      "Bash(uv sync *)",
+      "Bash(uv run *)",
+      "Bash(DATABASE_URL=\"postgresql+asyncpg://x:x@localhost:1/x\" uv run python -c \"import app.main; print\\('import ok, app title=', app.main.app.title\\)\")",
+      "Bash(DATABASE_URL=\"postgresql+asyncpg://x:x@localhost:1/x\" APP_ENV=\"staging\" uv run python -c \"import app.main\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" http://localhost:8000/health)",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" http://localhost:8000/ready)",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" http://localhost:8000/api/v1/does-not-exist)",
+      "Bash(sed -i -e 's/name=\"product_freshness_profiles_storage_type\"/name=\"storage_type\"/' -e 's/name=\"product_freshness_profiles_expiration_source\"/name=\"expiration_source\"/' -e 's/name=\"product_freshness_profiles_expiration_status\"/name=\"expiration_status\"/' app/domains/freshness/model.py)",
+      "Bash(sed -i -e 's/name=\"ingredients_storage_type\"/name=\"storage_type\"/' -e 's/name=\"ingredients_expiration_source\"/name=\"expiration_source\"/' -e 's/name=\"ingredients_expiration_status\"/name=\"expiration_status\"/' -e 's/name=\"ingredients_deletion_reason\"/name=\"deletion_reason\"/' app/domains/ingredients/model.py)",
+      "Bash(sed -i 's/name=\"products_source\"/name=\"source\"/' app/domains/products/model.py)",
+      "Bash(rm alembic/versions/d208fb875503_mvp_initial_schema.py)",
+      "Bash(curl -s http://localhost:8000/openapi.json -o /tmp/openapi.json)",
+      "Bash(python -c ' *)",
+      "Bash(echo \"EXIT_CODE=$?\")"
+    ]
+  }
+}

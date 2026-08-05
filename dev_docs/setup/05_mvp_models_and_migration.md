@@ -29,6 +29,22 @@
 - 최종 정제 테이블에는 처리 중간 JSON 전체를 저장하지 않는다. 원문 파일과 중간 산출물은 데이터 파이프라인 저장소의 책임이다.
 - 가격은 서비스 요구사항이 아니므로 products에 가격 컬럼을 추가하지 않는다.
 
+## 모델 배치 원칙
+
+```text
+app/domains/
+├─ users/model.py
+├─ devices/model.py
+├─ categories/model.py
+├─ foods/model.py
+├─ products/model.py
+├─ freshness/model.py
+├─ ingredients/model.py
+└─ notifications/model.py
+```
+
+각 모델은 자기 도메인에 위치한다. 공통 `Base`와 DB 세션만 `app/db`를 사용하며, 최상위 `app/models` 폴더는 만들지 않는다. 관계 때문에 발생하는 순환 import는 문자열 관계 선언과 중앙 model registry로 해결한다.
+
 ## 구현 작업
 
 1. 테이블별 ORM 모델과 Python Enum 또는 DB 제약 전략을 작성한다.
@@ -41,6 +57,7 @@
    - profile의 product/food 및 상태 조회 인덱스
 4. 최초 Alembic revision을 자동 생성한 뒤 반드시 수동 검토한다.
 5. upgrade와 downgrade를 모두 실행 검증한다.
+6. Alembic model registry가 8개 도메인 모델을 모두 가져오는지 확인한다.
 
 ## 모델 작성 시 확인할 항목
 
@@ -72,6 +89,7 @@ docker compose run --rm api alembic upgrade head
 
 ```text
 승인된 MVP ERD를 기준으로 8개 ORM 모델과 최초 Alembic migration을 구현해.
+모델은 app/domains/{domain}/model.py에 배치하고 기존 app/domains 구조를 유지해.
 필드나 테이블을 편의상 추가하지 말고, 특히 가격·원문 OCR JSON·삭제일시는 만들지 마.
 ingredients soft delete 규칙과 deletion_reason 무결성을 DB 또는 애플리케이션 계층에서 명시적으로 보장해.
 upgrade/downgrade를 실제 빈 로컬 DB에서 검증해.

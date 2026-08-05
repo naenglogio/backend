@@ -4,10 +4,15 @@ docker-compose.override.yml
 
 # Python
 venv/
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # 로그
 *.log

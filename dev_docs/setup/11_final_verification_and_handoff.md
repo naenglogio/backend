@@ -16,6 +16,8 @@
 8. ingredient 생성·조회·soft delete에 필요한 공통 DB 규칙을 확인한다.
 9. 컨테이너를 일반 종료한 뒤 재기동하여 DB 데이터가 보존되는지 확인한다.
 10. GitHub Actions 결과를 확인한다.
+11. `app/core`, `app/domains`, `app/batch`가 유지되고 책임이 섞이지 않았는지 확인한다.
+12. 최상위 `app/models`, `app/services`, `app/repositories`, `app/schemas`가 생성되지 않았는지 확인한다.
 
 ## 최종 명령 예시
 
@@ -41,6 +43,7 @@ docker compose ps
 | 계약 | 공통 오류·pagination·현재 사용자 경계 확정 |
 | 품질 | 로컬 및 CI 검사 통과 |
 | 안전 | 비밀값·개인 경로·운영 데이터 미포함 |
+| 구조 | 기존 도메인 중심 구조와 batch/core 책임 보존 |
 
 ## 팀원별 인계 항목
 
@@ -61,6 +64,8 @@ docker compose ps
 - users 모델과 current-user dependency 계약
 - 인증 전 Mock identity 교체 지점
 - 비밀번호 정책 결정 필요 항목
+
+각 인계 문서에는 담당 도메인 경로, 공통 계층 변경이 필요한 상황, batch 연계 여부를 명시한다.
 
 ## 최종 산출물
 
@@ -83,6 +88,7 @@ docker compose ps
 
 ```text
 공통 세팅 전체를 깨끗한 환경 기준으로 검증해.
+기존 app/core, app/domains, app/batch 보존과 도메인 내부 계층 배치를 별도 항목으로 검사해.
 새 기능은 추가하지 말고 실패 원인을 공통 기반 범위에서만 수정해.
 최종적으로 팀원별 개발 가능/불가능 항목과 남은 선결조건을 표로 보고해.
 ```

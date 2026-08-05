@@ -12,6 +12,8 @@ OCR/정제 파이프라인과 실제 운영 데이터가 준비되기 전에도 
 | Seed | 로컬 화면/API 개발용 샘플 | `scripts/` 또는 `app/db/seed/` |
 | Mock contract | 외부 파이프라인 결과 형식 고정 | `dev_docs/contracts/` 또는 기존 contracts 위치 |
 
+Seed 저장 위치는 `app/db/seed` 또는 별도 script 중 하나로 통일한다. 정제 결과를 주기적으로 적재하는 실행 코드는 `app/batch/freshness_data_import.py`에 두되, 실제 매핑·검증 규칙은 해당 도메인 Service에 둔다.
+
 ## Seed 최소 구성
 
 - 사용자 3명
@@ -51,6 +53,7 @@ OCR/정제 파이프라인과 실제 운영 데이터가 준비되기 전에도 
 3. production 환경에서는 seed 실행을 차단한다.
 4. 실제 파이프라인 adapter가 들어올 위치와 Mock adapter interface를 정의한다.
 5. seed 초기화가 필요하면 명시적 옵션을 받고 데이터 삭제 범위를 제한한다.
+6. `batch`는 실행 순서와 재시도 orchestration만 담당하고 도메인 규칙을 중복 구현하지 않는다.
 
 ## 검증
 
@@ -72,6 +75,7 @@ docker compose run --rm api python -m app.db.seed
 
 ```text
 실데이터가 아직 없다는 전제로 로컬 Seed, 테스트 Fixture, 파이프라인 Mock 계약을 만들어.
+정제 결과 적재 orchestration은 기존 app/batch에 두고 데이터 검증과 저장 규칙은 관련 domain service로 위임해.
 Seed는 idempotent하고 production에서 안전하게 차단되어야 해.
 원문 OCR JSON이나 중간 CSV 전체를 운영 DB에 넣지 말고 최종 정제 필드만 사용해.
 ```
