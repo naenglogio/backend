@@ -212,7 +212,7 @@ async def signup(session: AsyncSession, data: UserCreate) -> User:
     if await _get_verified_email_verification(session, email) is None:
         raise EmailNotVerifiedError()
 
-    user = User(email=email, password_hash=hash_password(data.password))
+    user = User(email=email, password_hash=hash_password(data.password), nickname=data.nickname)
     session.add(user)
     # 검증 세션은 1회용으로 소비한다 — 가입이 끝나면 같은 이메일의 인증 기록은 지운다.
     await session.execute(delete(EmailVerification).where(EmailVerification.email == email))

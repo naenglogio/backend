@@ -17,6 +17,7 @@ class User(IDMixin, TimestampMixin, Base):
 
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    nickname: Mapped[str] = mapped_column(String(20), nullable=False)
     notification_agreed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     # bcrypt는 72바이트를 넘는 입력을 다루지 못하므로 상한을 둔다.
     password: str = Field(min_length=8, max_length=72)
+    nickname: str = Field(min_length=1, max_length=20)
 
 
 class EmailVerificationRequest(BaseModel):
@@ -33,6 +34,7 @@ class UserRead(BaseModel):
 
     id: int
     email: EmailStr
+    nickname: str
     notification_agreed: bool
     created_at: datetime
 
