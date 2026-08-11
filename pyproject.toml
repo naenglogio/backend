@@ -11,6 +11,10 @@ dependencies = [
     "alembic",
     "pydantic-settings",
     "python-dotenv",
+    "bcrypt",
+    "pyjwt",
+    "email-validator",
+    "httpx",
 ]
 
 [dependency-groups]

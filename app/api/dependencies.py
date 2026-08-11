@@ -1,31 +1,37 @@
 from typing import Annotated
 
 from fastapi import Depends, Query
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import AppError
 from app.db.session import get_db_session
+from app.domains.users.service import InvalidTokenError, decode_access_token
 
 # 도메인 router는 이 타입을 그대로 파라미터에 써서 요청마다 DB 세션을 받는다.
 # commit 경계는 이 dependency가 아니라 service/repository가 정한다(04단계 설계 유지).
 DBSession = Annotated[AsyncSession, Depends(get_db_session)]
 
+# auto_error=False로 두고 헤더 누락도 직접 InvalidTokenError로 통일한다.
+# 기본값(auto_error=True)은 헤더가 없을 때 우리 공통 에러 포맷과 다른
+# {"detail": "Not authenticated"}를 반환해서 응답 계약이 어긋난다.
+_bearer_scheme = HTTPBearer(auto_error=False)
 
-async def get_current_user_id() -> int:
-    """현재 사용자 id를 반환하는 교체 가능한 계약.
 
-    인증이 아직 구현되지 않았으므로 항상 501로 명확히 실패한다. 실제 인증이
-    만들어지면 이 함수의 본문만 토큰 검증 로직으로 교체하면 되고, 다른 코드는
-    `CurrentUserId` 타입을 그대로 쓰면 된다.
+async def get_current_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
+) -> int:
+    """Authorization 헤더의 JWT에서 현재 사용자 id를 반환하는 공통 계약.
+
+    토큰 검증 자체는 app.domains.users.service.decode_access_token이 하고,
+    여기서는 그 결과를 다른 도메인이 재사용할 수 있는 형태로만 노출한다.
+    헤더 누락·서명 불일치·만료는 모두 InvalidTokenError(401)로 통일한다.
 
     테스트에서는 `app.dependency_overrides[get_current_user_id] = lambda: 1`
     처럼 override해서 인증 없이 특정 사용자로 요청을 검증한다.
     """
-    raise AppError(
-        code="AUTH_NOT_IMPLEMENTED",
-        message="인증이 아직 구현되지 않았습니다.",
-        status_code=501,
-    )
+    if credentials is None:
+        raise InvalidTokenError()
+    return decode_access_token(credentials.credentials)
 
 
 CurrentUserId = Annotated[int, Depends(get_current_user_id)]
