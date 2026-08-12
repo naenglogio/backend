@@ -23,12 +23,15 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
-    # RESEND_API_KEY가 비어 있으면(로컬 기본값) 실제 발송 대신 로그로 인증번호를 남긴다.
-    # 운영 환경은 .env에 실제 API 키를 채워 활성화한다.
-    RESEND_API_KEY: str | None = None
-    # 발신 도메인을 인증하기 전까지는 Resend 샌드박스 발신 주소만 쓸 수 있고,
-    # 이 경우 수신자는 Resend 가입 계정 이메일로 제한된다.
-    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
+    # SMTP_HOST가 비어 있으면(로컬 기본값) 실제 발송 대신 로그로 인증번호를 남긴다.
+    # 운영 환경은 .env에 실제 발신 계정을 채워 활성화한다.
+    # Gmail은 2단계 인증을 켠 뒤 발급받는 앱 비밀번호(App password)를 SMTP_PASSWORD에 쓴다.
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str = "no-reply@naenglog.local"
+    SMTP_USE_TLS: bool = True
 
     EMAIL_VERIFICATION_CODE_TTL_MINUTES: int = 5
     EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
