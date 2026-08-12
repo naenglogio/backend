@@ -3,6 +3,9 @@ services:
   db:
     image: pgvector/pgvector:pg16
     env_file: .env
+    ports:
+      # 로컬에 이미 Postgres가 5432를 쓰고 있을 수 있어 호스트 쪽은 5433으로 뺀다.
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
