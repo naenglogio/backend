@@ -136,6 +136,15 @@ async def request_email_verification(session: AsyncSession, email: str) -> None:
         if now < cooldown_until:
             raise VerificationCooldownError()
 
+    # 재요청 시 이전에 남아있던 미인증 기록(만료·오답 등으로 끝까지 안 쓰인 것)을 지운다.
+    # 가입까지 완료된 인증 기록은 signup()이 지우므로 여기선 verified_at이 없는 것만 정리한다.
+    await session.execute(
+        delete(EmailVerification).where(
+            EmailVerification.email == email,
+            EmailVerification.verified_at.is_(None),
+        )
+    )
+
     code = _generate_verification_code()
     session.add(
         EmailVerification(
