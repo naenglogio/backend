@@ -8,6 +8,9 @@ FastAPI + PostgreSQL(pgvector) + SQLAlchemy 2.0 + Alembic
 2. docker compose up -d
 3. docker compose exec api alembic upgrade head
 4. http://localhost:8000/health 접속해서 확인
+5. (선택) http://localhost:5050 에서 pgAdmin 접속
+   - 로그인: `.env`의 `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` (기본 `admin@naenglog.io` / `changeme`)
+   - Add New Server → Host `db`, Port `5432`, Username/Password/DB는 `POSTGRES_*` 값
 
 ## Docker 명령어
 
