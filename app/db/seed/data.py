@@ -105,6 +105,11 @@ SEED_FRESHNESS_PROFILES: list[dict[str, Any]] = [
 
 # key는 SEED_NOTIFICATIONS가 어떤 ingredient를 가리키는지 연결하는 용도로만 쓰는
 # seed 내부 식별자다. DB 컬럼이 아니다.
+#
+# BE-1 반영:
+# - storage_type: 문자열 → int (0=냉장, 1=냉동)
+# - name/quantity/unit 등 새 필드
+# - deletion_reason: WRONG_ENTRY → INCORRECT_ENTRY
 SEED_INGREDIENTS: list[dict[str, Any]] = [
     # --- 활성 상태: 임박/여유/경과 각 1건 ---
     {
@@ -113,7 +118,9 @@ SEED_INGREDIENTS: list[dict[str, Any]] = [
         "food_name": "우유",
         "product_external_id": "seed-prod-1001",
         "use_profile": True,
-        "storage_type": "REFRIGERATED",
+        "name": "우유",
+        "storage_type": 0,  # 냉장
+        "quantity": 1,
         "expiration_offset_days": 2,  # 임박
         "expiration_source": "PRODUCT_DISCLOSURE",
         "expiration_status": "CONFIRMED",
@@ -126,7 +133,10 @@ SEED_INGREDIENTS: list[dict[str, Any]] = [
         "food_name": "당근",
         "product_external_id": "seed-prod-2002",
         "use_profile": False,
-        "storage_type": "REFRIGERATED",
+        "name": "당근",
+        "storage_type": 0,
+        "quantity": 2,
+        "unit": "개",
         "expiration_offset_days": 30,  # 여유
         "expiration_source": "PRODUCT_DISCLOSURE",
         "expiration_status": "ESTIMATED",
@@ -139,21 +149,25 @@ SEED_INGREDIENTS: list[dict[str, Any]] = [
         "food_name": "양파",
         "product_external_id": None,  # 직접 입력 식재료 예시
         "use_profile": False,
-        "storage_type": "ROOM_TEMPERATURE",
+        "name": "양파",
+        "storage_type": 0,  # 냉장 (ROOM_TEMPERATURE는 정본에서 제거)
+        "quantity": 1,
         "expiration_offset_days": -3,  # 경과
         "expiration_source": "USER_INPUT",
         "expiration_status": "CONFIRMED",
         "is_deleted": False,
         "deletion_reason": None,
     },
-    # --- soft-deleted: CONSUMED / DISCARDED / WRONG_ENTRY 각 1건 ---
+    # --- soft-deleted: CONSUMED / DISCARDED / INCORRECT_ENTRY 각 1건 ---
     {
         "key": "user1-egg-consumed",
         "user_email": "seed.user1@naenglog.local",
         "food_name": "계란",
         "product_external_id": "seed-prod-1002",
         "use_profile": False,
-        "storage_type": "REFRIGERATED",
+        "name": "계란",
+        "storage_type": 0,
+        "quantity": 1,
         "expiration_offset_days": -10,
         "expiration_source": "PRODUCT_DISCLOSURE",
         "expiration_status": "CONFIRMED",
@@ -166,7 +180,9 @@ SEED_INGREDIENTS: list[dict[str, Any]] = [
         "food_name": "냉동만두",
         "product_external_id": "seed-prod-1004",
         "use_profile": True,
-        "storage_type": "FROZEN",
+        "name": "냉동만두",
+        "storage_type": 1,  # 냉동
+        "quantity": 1,
         "expiration_offset_days": 100,
         "expiration_source": "PRODUCT_DISCLOSURE",
         "expiration_status": "CONFIRMED",
@@ -174,17 +190,19 @@ SEED_INGREDIENTS: list[dict[str, Any]] = [
         "deletion_reason": "DISCARDED",
     },
     {
-        "key": "user3-rice-wrong-entry",
+        "key": "user3-rice-incorrect-entry",
         "user_email": "seed.user3@naenglog.local",
         "food_name": "즉석밥",
         "product_external_id": "seed-prod-1003",
         "use_profile": True,
-        "storage_type": "ROOM_TEMPERATURE",
+        "name": "즉석밥",
+        "storage_type": 0,
+        "quantity": 1,
         "expiration_offset_days": 300,
         "expiration_source": "PRODUCT_DISCLOSURE",
         "expiration_status": "ESTIMATED",
         "is_deleted": True,
-        "deletion_reason": "WRONG_ENTRY",
+        "deletion_reason": "INCORRECT_ENTRY",
     },
 ]
 
@@ -209,7 +227,7 @@ SEED_NOTIFICATIONS: list[dict[str, Any]] = [
     },
     {
         "user_email": "seed.user3@naenglog.local",
-        "ingredient_key": "user3-rice-wrong-entry",
+        "ingredient_key": "user3-rice-incorrect-entry",
         "message": "즉석밥 등록 정보를 확인해주세요.",
         "is_read": True,
     },

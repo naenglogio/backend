@@ -108,12 +108,16 @@ async def _get_or_create_ingredient(
 
     expiration_date = date.today() + timedelta(days=spec["expiration_offset_days"])
     deletion_reason = spec["deletion_reason"]
+    # BE-1: Ingredient에 name/quantity/unit과 int storage_type이 필수가 됨.
     ingredient = Ingredient(
         user_id=user_id,
         food_id=food_id,
         product_id=product_id,
         freshness_profile_id=profile_id,
-        storage_type=StorageType(spec["storage_type"]),
+        name=spec.get("name") or spec["food_name"],
+        storage_type=int(spec["storage_type"]),  # 0=냉장, 1=냉동
+        quantity=int(spec.get("quantity", 1)),
+        unit=spec.get("unit"),
         expiration_date=expiration_date,
         expiration_source=ExpirationSource(spec["expiration_source"]),
         expiration_status=ExpirationStatus(spec["expiration_status"]),
