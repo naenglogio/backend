@@ -16,7 +16,7 @@
 | ID   | 산출물                        | 엔드포인트/파일                | 상태 | 프론트가 알아야 할 것                    |
 | ---- | ----------------------------- | ------------------------------ | :--: | ---------------------------------------- |
 | BE-1 | ingredients 모델+마이그레이션 | model.py                       |  ✅  | ingredients 스키마가 계약서대로 확정됨 |
-| BE-2 | 도메인 파일 세트              | schema/repo/service/router     |  ⬜  |                                          |
+| BE-2 | 도메인 파일 세트              | schema/repo/service/router     |  ✅  | 뼈대 등록됨. 실로직은 BE-3~7에서 채움   |
 | BE-3 | 목록/상세 API                 | GET /ingredients, /{id}        |  ⬜  | 완료 시 상세·3D 화면 실연동 가능         |
 | BE-4 | 등록 API                      | POST /ingredients              |  ⬜  | 완료 시 등록 화면 실연동 가능            |
 | BE-5 | 집계 API                      | GET /ingredients/summary       |  ⬜  | 완료 시 대시보드 실연동 가능             |
