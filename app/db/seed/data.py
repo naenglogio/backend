@@ -13,9 +13,9 @@ from typing import Any
 SEED_PASSWORD_HASH_PLACEHOLDER = "seed-placeholder-hash-not-for-login"
 
 SEED_USERS: list[dict[str, Any]] = [
-    {"email": "seed.user1@naenglog.local", "notification_agreed": True},
-    {"email": "seed.user2@naenglog.local", "notification_agreed": False},
-    {"email": "seed.user3@naenglog.local", "notification_agreed": True},
+    {"email": "seed.user1@naenglog.local", "nickname": "seed유저1", "notification_agreed": True},
+    {"email": "seed.user2@naenglog.local", "nickname": "seed유저2", "notification_agreed": False},
+    {"email": "seed.user3@naenglog.local", "nickname": "seed유저3", "notification_agreed": True},
 ]
 SEED_USER_EMAILS: list[str] = [u["email"] for u in SEED_USERS]
 

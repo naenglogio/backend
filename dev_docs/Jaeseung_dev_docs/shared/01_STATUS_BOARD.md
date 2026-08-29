@@ -17,7 +17,7 @@
 | ---- | ----------------------------- | ------------------------------ | :--: | ---------------------------------------- |
 | BE-1 | ingredients 모델+마이그레이션 | model.py                       |  ✅  | ingredients 스키마가 계약서대로 확정됨 |
 | BE-2 | 도메인 파일 세트              | schema/repo/service/router     |  ✅  | 뼈대 등록됨. 실로직은 BE-3~7에서 채움   |
-| BE-3 | 목록/상세 API                 | GET /ingredients, /{id}        |  ⬜  | 완료 시 상세·3D 화면 실연동 가능         |
+| BE-3 | 목록/상세 API                 | GET /ingredients, /{id}        |  ✅  | 상세·3D 화면(FE-2/FE-6) 실연동 가능      |
 | BE-4 | 등록 API                      | POST /ingredients              |  ⬜  | 완료 시 등록 화면 실연동 가능            |
 | BE-5 | 집계 API                      | GET /ingredients/summary       |  ⬜  | 완료 시 대시보드 실연동 가능             |
 | BE-6 | local seed                    | scripts/seed_dev_data.py       |  ⬜  | 완료 시 FE가 실데이터로 화면 확인        |

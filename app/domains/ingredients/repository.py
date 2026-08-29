@@ -1,12 +1,11 @@
 """ingredients DB 질의 계층.
 
-BE-2 #02: Router/Service가 호출할 메서드 자리만 둔다.
-실제 쿼리 구현은 BE-3(목록·상세), BE-4(등록), BE-5(집계)에서 채운다.
 ORM은 이 모듈에서만 사용한다 (router 금지).
 """
 
 from datetime import date
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.freshness.enums import ExpirationStatus
@@ -26,9 +25,27 @@ async def list_active_by_user(
 ) -> tuple[list[Ingredient], int]:
     """소유분·is_deleted=false 목록과 total.
 
-    BE-3: 필터(optional)·페이지네이션 쿼리 구현.
+    BE-3: storage_type·expiration_status는 optional 필터. 최근 등록순으로 정렬한다.
     """
-    raise NotImplementedError("BE-3에서 구현")
+    conditions = [Ingredient.user_id == user_id, Ingredient.is_deleted.is_(False)]
+    if storage_type is not None:
+        conditions.append(Ingredient.storage_type == storage_type)
+    if expiration_status is not None:
+        conditions.append(Ingredient.expiration_status == expiration_status)
+
+    total = await session.scalar(
+        select(func.count()).select_from(Ingredient).where(*conditions)
+    )
+
+    result = await session.execute(
+        select(Ingredient)
+        .where(*conditions)
+        .order_by(Ingredient.created_at.desc(), Ingredient.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    items = list(result.scalars().all())
+    return items, total or 0
 
 
 async def get_owned_by_id(
@@ -37,11 +54,19 @@ async def get_owned_by_id(
     user_id: int,
     ingredient_id: int,
 ) -> Ingredient | None:
-    """본인 소유 ingredient 단건. 없거나 남의 것이면 None → service에서 404.
+    """본인 소유·미삭제 ingredient 단건. 없거나 남의 것이면 None → service에서 404.
 
-    BE-3: 소유권 조건 조회 구현.
+    is_deleted=true인 항목도 소유권과 무관하게 목록에서 이미 숨겨져 있으므로
+    상세 조회에서도 동일하게 404 취급한다(목록과 상세의 가시성 일치).
     """
-    raise NotImplementedError("BE-3에서 구현")
+    result = await session.execute(
+        select(Ingredient).where(
+            Ingredient.id == ingredient_id,
+            Ingredient.user_id == user_id,
+            Ingredient.is_deleted.is_(False),
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_product_by_id(
@@ -49,11 +74,9 @@ async def get_product_by_id(
     *,
     product_id: int,
 ) -> Product | None:
-    """상세 응답 nested product용.
-
-    BE-3: product_id로 Product 조회.
-    """
-    raise NotImplementedError("BE-3에서 구현")
+    """상세 응답 nested product용."""
+    result = await session.execute(select(Product).where(Product.id == product_id))
+    return result.scalar_one_or_none()
 
 
 async def get_freshness_profile_by_id(
@@ -61,11 +84,13 @@ async def get_freshness_profile_by_id(
     *,
     freshness_profile_id: int,
 ) -> ProductFreshnessProfile | None:
-    """상세 응답 nested freshness_profile용.
-
-    BE-3: freshness_profile_id로 ProductFreshnessProfile 조회.
-    """
-    raise NotImplementedError("BE-3에서 구현")
+    """상세 응답 nested freshness_profile용."""
+    result = await session.execute(
+        select(ProductFreshnessProfile).where(
+            ProductFreshnessProfile.id == freshness_profile_id
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def create(

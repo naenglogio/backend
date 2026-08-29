@@ -1,7 +1,6 @@
 """ingredients 업무 규칙과 transaction 경계.
 
-BE-2 #03: Router가 호출할 유스케이스 자리만 둔다.
-DB는 repository에 위임하고, 여기서는 소유권·기본값·매핑 규칙을 담당할 예정이다.
+DB는 repository에 위임하고, 여기서는 소유권·기본값·매핑 규칙을 담당한다.
 실제 로직은 BE-3(목록·상세), BE-4(등록), BE-5(집계), BE-7(인식)에서 채운다.
 """
 
@@ -10,13 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas import Page
 from app.core.exceptions import AppError
 from app.domains.freshness.enums import ExpirationStatus
+from app.domains.ingredients import repository
 from app.domains.ingredients.schema import (
     CameraRecognizeResponse,
     Ingredient,
     IngredientCreateRequest,
     IngredientDetailResponse,
     IngredientSummaryResponse,
-    StorageTypeInt,
+    ProductFreshnessProfileRead,
+    ProductRead,
 )
 
 
@@ -34,14 +35,21 @@ async def list_ingredients(
     user_id: int,
     page: int,
     size: int,
-    storage_type: StorageTypeInt | None = None,
+    storage_type: int | None = None,
     expiration_status: ExpirationStatus | None = None,
 ) -> Page[Ingredient]:
-    """GET /ingredients — 소유·활성 목록.
-
-    BE-3: repository.list_active_by_user 호출 후 Page로 포장.
-    """
-    raise NotImplementedError("BE-3에서 구현")
+    """GET /ingredients — 소유·활성 목록."""
+    offset = (page - 1) * size
+    rows, total = await repository.list_active_by_user(
+        session,
+        user_id=user_id,
+        storage_type=storage_type,
+        expiration_status=expiration_status,
+        offset=offset,
+        limit=size,
+    )
+    items = [Ingredient.model_validate(row) for row in rows]
+    return Page[Ingredient](items=items, page=page, size=size, total=total)
 
 
 async def get_ingredient_detail(
@@ -52,10 +60,35 @@ async def get_ingredient_detail(
 ) -> IngredientDetailResponse:
     """GET /ingredients/{id} — 상세(+ product/profile).
 
-    BE-3: repository.get_owned_by_id; 없으면 IngredientNotFoundError.
-    직접입력이면 product/freshness_profile은 null.
+    직접입력(product_id/freshness_profile_id null)이면 해당 필드는 null로 남는다.
     """
-    raise NotImplementedError("BE-3에서 구현")
+    ingredient = await repository.get_owned_by_id(
+        session, user_id=user_id, ingredient_id=ingredient_id
+    )
+    if ingredient is None:
+        raise IngredientNotFoundError()
+
+    product = None
+    if ingredient.product_id is not None:
+        product_row = await repository.get_product_by_id(
+            session, product_id=ingredient.product_id
+        )
+        product = ProductRead.model_validate(product_row) if product_row else None
+
+    freshness_profile = None
+    if ingredient.freshness_profile_id is not None:
+        profile_row = await repository.get_freshness_profile_by_id(
+            session, freshness_profile_id=ingredient.freshness_profile_id
+        )
+        freshness_profile = (
+            ProductFreshnessProfileRead.model_validate(profile_row) if profile_row else None
+        )
+
+    return IngredientDetailResponse(
+        **Ingredient.model_validate(ingredient).model_dump(),
+        product=product,
+        freshness_profile=freshness_profile,
+    )
 
 
 async def create_ingredient(

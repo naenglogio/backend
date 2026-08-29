@@ -27,7 +27,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # 1) storage_type: CHECK 제거 → 값 변환 → 컬럼 타입을 smallint로 → 0/1 CHECK 추가
-    op.drop_constraint("ck_ingredients_storage_type", "ingredients", type_="check")
+    # naming.py에 naming_convention이 등록돼 있어, 이미 확정된 이름을 하드코딩할 때는
+    # op.f()로 감싸야 Alembic이 convention을 다시 적용해 이름을 이중으로 만들지 않는다.
+    op.drop_constraint(op.f("ck_ingredients_storage_type"), "ingredients", type_="check")
     op.execute(
         """
         UPDATE ingredients
@@ -47,13 +49,22 @@ def upgrade() -> None:
         postgresql_using="storage_type::smallint",
     )
     op.create_check_constraint(
-        "ck_ingredients_storage_type_is_refrigerated_or_frozen",
+        op.f("ck_ingredients_storage_type_is_refrigerated_or_frozen"),
         "ingredients",
         "storage_type IN (0, 1)",
     )
 
     # 2) deletion_reason 허용값 교체 (WRONG_ENTRY → INCORRECT_ENTRY)
-    op.drop_constraint("ck_ingredients_deletion_reason", "ingredients", type_="check")
+    op.drop_constraint(op.f("ck_ingredients_deletion_reason"), "ingredients", type_="check")
+    # 기존 컬럼은 'WRONG_ENTRY'(11자) 기준 VARCHAR(11). 'INCORRECT_ENTRY'(15자)를
+    # 담으려면 먼저 폭을 넓혀야 UPDATE가 안 잘린다.
+    op.alter_column(
+        "ingredients",
+        "deletion_reason",
+        existing_type=sa.VARCHAR(length=11),
+        type_=sa.VARCHAR(length=16),
+        existing_nullable=True,
+    )
     op.execute(
         """
         UPDATE ingredients
@@ -62,7 +73,7 @@ def upgrade() -> None:
         """
     )
     op.create_check_constraint(
-        "ck_ingredients_deletion_reason",
+        op.f("ck_ingredients_deletion_reason"),
         "ingredients",
         "deletion_reason IN ('CONSUMED', 'DISCARDED', 'INCORRECT_ENTRY')",
     )
@@ -120,7 +131,7 @@ def downgrade() -> None:
     op.drop_column("ingredients", "quantity")
     op.drop_column("ingredients", "name")
 
-    op.drop_constraint("ck_ingredients_deletion_reason", "ingredients", type_="check")
+    op.drop_constraint(op.f("ck_ingredients_deletion_reason"), "ingredients", type_="check")
     op.execute(
         """
         UPDATE ingredients
@@ -128,14 +139,22 @@ def downgrade() -> None:
         WHERE deletion_reason = 'INCORRECT_ENTRY'
         """
     )
+    # upgrade에서 넓힌 폭을 원복. 이 시점엔 값이 전부 11자 이하로 되돌아가 있다.
+    op.alter_column(
+        "ingredients",
+        "deletion_reason",
+        existing_type=sa.VARCHAR(length=16),
+        type_=sa.VARCHAR(length=11),
+        existing_nullable=True,
+    )
     op.create_check_constraint(
-        "ck_ingredients_deletion_reason",
+        op.f("ck_ingredients_deletion_reason"),
         "ingredients",
         "deletion_reason IN ('CONSUMED', 'DISCARDED', 'WRONG_ENTRY')",
     )
 
     op.drop_constraint(
-        "ck_ingredients_storage_type_is_refrigerated_or_frozen",
+        op.f("ck_ingredients_storage_type_is_refrigerated_or_frozen"),
         "ingredients",
         type_="check",
     )
@@ -153,7 +172,7 @@ def downgrade() -> None:
         ),
     )
     op.create_check_constraint(
-        "ck_ingredients_storage_type",
+        op.f("ck_ingredients_storage_type"),
         "ingredients",
         "storage_type IN ('REFRIGERATED', 'FROZEN', 'ROOM_TEMPERATURE')",
     )

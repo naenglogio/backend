@@ -33,7 +33,9 @@ from app.domains.users.model import User
 logger = logging.getLogger(__name__)
 
 
-async def _get_or_create_user(session: AsyncSession, email: str, notification_agreed: bool) -> User:
+async def _get_or_create_user(
+    session: AsyncSession, email: str, nickname: str, notification_agreed: bool
+) -> User:
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is not None:
@@ -41,6 +43,7 @@ async def _get_or_create_user(session: AsyncSession, email: str, notification_ag
     user = User(
         email=email,
         password_hash=data.SEED_PASSWORD_HASH_PLACEHOLDER,
+        nickname=nickname,
         notification_agreed=notification_agreed,
         is_deleted=False,
     )
@@ -155,7 +158,7 @@ async def run_seed(session: AsyncSession) -> None:
     """여러 번 실행해도 안전하다(natural key 기준 get-or-create)."""
     user_ids: dict[str, int] = {}
     for u in data.SEED_USERS:
-        user = await _get_or_create_user(session, u["email"], u["notification_agreed"])
+        user = await _get_or_create_user(session, u["email"], u["nickname"], u["notification_agreed"])
         user_ids[u["email"]] = user.id
 
     for dv in data.SEED_DEVICES:

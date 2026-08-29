@@ -6,7 +6,7 @@ ORM 금지. 실제 동작은 BE-3~7에서 service/repository를 채운 뒤 살�
 경로 순서 주의: /summary, /recognitions 를 /{ingredient_id} 보다 먼저 둔다.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, File, Query, UploadFile, status
 
@@ -40,7 +40,9 @@ async def get_ingredients(
     session: DBSession,
     user_id: CurrentUserId,
     page_query: PageQuery,
-    storage_type: Annotated[Literal[0, 1] | None, Query()] = None,
+    # 쿼리 문자열("0"/"1")은 pydantic이 Literal[0, 1]로 강제 변환해주지 않아
+    # 항상 검증 실패한다(JSON 바디와 달리 쿼리는 str로 들어옴). int + 범위 제약으로 받는다.
+    storage_type: Annotated[int | None, Query(ge=0, le=1)] = None,
     expiration_status: Annotated[ExpirationStatus | None, Query()] = None,
 ) -> Page[Ingredient]:
     """목록 조회. BE-3에서 구현."""
