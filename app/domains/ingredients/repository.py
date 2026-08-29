@@ -8,6 +8,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.foods.model import Food
 from app.domains.freshness.enums import ExpirationStatus
 from app.domains.freshness.model import ProductFreshnessProfile
 from app.domains.ingredients.model import Ingredient
@@ -93,15 +94,24 @@ async def get_freshness_profile_by_id(
     return result.scalar_one_or_none()
 
 
+async def get_food_by_id(
+    session: AsyncSession,
+    *,
+    food_id: int,
+) -> Food | None:
+    """등록 시 food_id 참조 무결성 확인용."""
+    result = await session.execute(select(Food).where(Food.id == food_id))
+    return result.scalar_one_or_none()
+
+
 async def create(
     session: AsyncSession,
     ingredient: Ingredient,
 ) -> Ingredient:
-    """식재료 행 추가 후 flush/refresh한 엔티티 반환.
-
-    BE-4: session.add + commit 경계는 service가 담당할지 여기서 할지 결정 후 구현.
-    """
-    raise NotImplementedError("BE-4에서 구현")
+    """식재료 행 추가 후 flush한 엔티티 반환. commit 경계는 service가 담당한다."""
+    session.add(ingredient)
+    await session.flush()
+    return ingredient
 
 
 async def summarize_active_by_user(
