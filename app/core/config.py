@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # 인증 성공 후 회원가입을 완료할 때까지 허용하는 유효 시간.
     EMAIL_VERIFICATION_SESSION_TTL_MINUTES: int = 30
 
+    PASSWORD_RESET_CODE_TTL_MINUTES: int = 5
+    PASSWORD_RESET_RESEND_COOLDOWN_SECONDS: int = 60
+    PASSWORD_RESET_MAX_ATTEMPTS: int = 5
+    # 인증 성공 후 새 비밀번호 설정을 완료할 때까지 허용하는 유효 시간.
+    PASSWORD_RESET_SESSION_TTL_MINUTES: int = 30
+
     LOG_LEVEL: str = "INFO"
 
     # 콤마로 구분된 문자열(.env)을 안전하게 리스트로 변환한다.
