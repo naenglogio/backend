@@ -33,8 +33,10 @@ from fastapi import APIRouter
 
 from app.domains.ingredients.router import router as ingredients_router
 from app.domains.users.router import router as users_router
+from app.domains.profile.router import router as profile_router
 
 api_router = APIRouter()
 
 api_router.include_router(users_router, prefix="/users", tags=["users"])
 api_router.include_router(ingredients_router, prefix="/ingredients", tags=["ingredients"])
+api_router.include_router(profile_router, prefix="/profile", tags=["profile"])
