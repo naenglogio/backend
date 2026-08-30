@@ -17,8 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.core.mailer import send_email
-from app.domains.users.model import EmailVerification, User
-from app.domains.users.schema import EmailVerificationConfirm, LoginRequest, UserCreate
+from app.domains.users.model import EmailVerification, PasswordReset, User
+from app.domains.users.schema import (
+    EmailVerificationConfirm,
+    LoginRequest,
+    PasswordResetComplete,
+    PasswordResetConfirm,
+    UserCreate,
+)
 
 
 class EmailAlreadyRegisteredError(AppError):
@@ -69,6 +75,36 @@ class VerificationAttemptsExceededError(AppError):
     status_code = 429
 
 
+class PasswordResetCooldownError(AppError):
+    code = "PASSWORD_RESET_COOLDOWN"
+    message = "잠시 후 다시 시도해주세요."
+    status_code = 429
+
+
+class PasswordResetCodeExpiredError(AppError):
+    code = "PASSWORD_RESET_CODE_EXPIRED"
+    message = "인증번호가 만료되었거나 존재하지 않습니다. 다시 요청해주세요."
+    status_code = 400
+
+
+class InvalidPasswordResetCodeError(AppError):
+    code = "INVALID_PASSWORD_RESET_CODE"
+    message = "인증번호가 일치하지 않습니다."
+    status_code = 400
+
+
+class PasswordResetAttemptsExceededError(AppError):
+    code = "PASSWORD_RESET_ATTEMPTS_EXCEEDED"
+    message = "시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요."
+    status_code = 429
+
+
+class PasswordResetNotVerifiedError(AppError):
+    code = "PASSWORD_RESET_NOT_VERIFIED"
+    message = "인증을 먼저 완료해주세요."
+    status_code = 400
+
+
 # bcrypt로 비밀번호 해싱
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -117,10 +153,13 @@ def _hash_verification_code(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()
 
 
-# 인증번호 생성, 저장 후 이메일 발송. 재요청 쿨다운 안이면 거절
+# 인증번호 생성, 저장 후 이메일 발송. 이미 가입된 이메일이면 발송 전에 거절
 async def request_email_verification(session: AsyncSession, email: str) -> None:
     email = email.lower()
     now = datetime.now(UTC)
+
+    if await _get_active_user_by_email(session, email) is not None:
+        raise EmailAlreadyRegisteredError()
 
     result = await session.execute(
         select(EmailVerification)
@@ -237,3 +276,115 @@ async def login(session: AsyncSession, data: LoginRequest) -> str:
         raise InvalidCredentialsError()
 
     return create_access_token(user.id)
+
+
+# 인증번호 생성, 저장 후 이메일 발송. 가입되지 않은 이메일이면 계정 존재 여부를
+# 노출하지 않기 위해 조용히 무시한다(응답은 항상 동일).
+async def request_password_reset(session: AsyncSession, email: str) -> None:
+    email = email.lower()
+    now = datetime.now(UTC)
+
+    if await _get_active_user_by_email(session, email) is None:
+        return
+
+    result = await session.execute(
+        select(PasswordReset)
+        .where(PasswordReset.email == email)
+        .order_by(PasswordReset.created_at.desc())
+        .limit(1)
+    )
+    latest = result.scalar_one_or_none()
+    if latest is not None:
+        cooldown_until = latest.created_at + timedelta(
+            seconds=settings.PASSWORD_RESET_RESEND_COOLDOWN_SECONDS
+        )
+        if now < cooldown_until:
+            raise PasswordResetCooldownError()
+
+    # 재요청 시 이전에 남아있던 미인증 기록을 지운다. request_email_verification과 동일한 이유.
+    await session.execute(
+        delete(PasswordReset).where(
+            PasswordReset.email == email,
+            PasswordReset.verified_at.is_(None),
+        )
+    )
+
+    code = _generate_verification_code()
+    session.add(
+        PasswordReset(
+            email=email,
+            code_hash=_hash_verification_code(code),
+            expires_at=now + timedelta(minutes=settings.PASSWORD_RESET_CODE_TTL_MINUTES),
+        )
+    )
+    await session.commit()
+
+    await send_email(
+        to_email=email,
+        subject="[냉로그] 비밀번호 재설정 인증번호",
+        body=(
+            f"인증번호는 {code}입니다. "
+            f"{settings.PASSWORD_RESET_CODE_TTL_MINUTES}분 안에 입력해주세요."
+        ),
+    )
+
+
+# 인증번호 일치 여부 확인 후 verified_at 기록
+async def confirm_password_reset(session: AsyncSession, data: PasswordResetConfirm) -> None:
+    email = data.email.lower()
+    now = datetime.now(UTC)
+
+    result = await session.execute(
+        select(PasswordReset)
+        .where(PasswordReset.email == email, PasswordReset.verified_at.is_(None))
+        .order_by(PasswordReset.created_at.desc())
+        .limit(1)
+    )
+    verification = result.scalar_one_or_none()
+    if verification is None or verification.expires_at < now:
+        raise PasswordResetCodeExpiredError()
+
+    if verification.attempt_count >= settings.PASSWORD_RESET_MAX_ATTEMPTS:
+        raise PasswordResetAttemptsExceededError()
+
+    if verification.code_hash != _hash_verification_code(data.code):
+        verification.attempt_count += 1
+        await session.commit()
+        raise InvalidPasswordResetCodeError()
+
+    verification.verified_at = now
+    await session.commit()
+
+
+# 유효 시간 안의 인증 완료 기록 조회
+async def _get_verified_password_reset(session: AsyncSession, email: str) -> PasswordReset | None:
+    now = datetime.now(UTC)
+    session_expiry_floor = now - timedelta(minutes=settings.PASSWORD_RESET_SESSION_TTL_MINUTES)
+
+    result = await session.execute(
+        select(PasswordReset)
+        .where(
+            PasswordReset.email == email,
+            PasswordReset.verified_at.is_not(None),
+            PasswordReset.verified_at >= session_expiry_floor,
+        )
+        .order_by(PasswordReset.verified_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+# 인증 완료 세션이 유효할 때만 비밀번호 변경, 사용한 인증 기록은 삭제
+async def complete_password_reset(session: AsyncSession, data: PasswordResetComplete) -> None:
+    email = data.email.lower()
+
+    if await _get_verified_password_reset(session, email) is None:
+        raise PasswordResetNotVerifiedError()
+
+    user = await _get_active_user_by_email(session, email)
+    if user is None:
+        raise PasswordResetNotVerifiedError()
+
+    user.password_hash = hash_password(data.new_password)
+    await session.execute(delete(PasswordReset).where(PasswordReset.email == email))
+    await session.commit()

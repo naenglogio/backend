@@ -37,3 +37,20 @@ class EmailVerification(IDMixin, TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class PasswordReset(IDMixin, TimestampMixin, Base):
+    """비밀번호 재설정용 인증번호. EmailVerification과 동일한 형태를 쓴다.
+
+    이미 가입된 계정의 이메일만 대상이 되지만, users와 FK로 묶지는 않는다 —
+    존재하지 않는 이메일로 요청이 와도 계정 존재 여부를 노출하지 않고 조용히
+    무시해야 하기 때문이다(service.request_password_reset 참고).
+    """
+
+    __tablename__ = "password_resets"
+
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

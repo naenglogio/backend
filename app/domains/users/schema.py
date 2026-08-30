@@ -29,6 +29,21 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=72)
 
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6)
+
+
+class PasswordResetComplete(BaseModel):
+    email: EmailStr
+    # bcrypt는 72바이트를 넘는 입력을 다루지 못하므로 상한을 둔다.
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
