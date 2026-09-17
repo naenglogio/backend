@@ -122,6 +122,13 @@ GET /api/v1/ingredients/summary
 
 **ExpiringItem**: `{ id, name, storage_type(int), expiration_date(string|null) }`
 
+**임박 기준 (BE-5 확정)**
+- `expiration_date <= 오늘(KST) + 3일` → 임박. **이미 지난 항목도 포함**한다.
+- `expiration_date`가 null이면 임박에서 제외되지만 `total`에는 포함된다.
+- `expiring_items`는 소비기한 오름차순 **최대 5건**. 임박이 5건을 넘으면
+  `expiring_count > expiring_items.length`가 정상이므로, 개수 배지는 `expiring_count`를 쓴다.
+- FE의 임박 배지 기준일수도 3일로 맞춰야 화면 숫자와 색이 어긋나지 않는다.
+
 ---
 
 ## 상태 매핑 참고 (노션 5.4)

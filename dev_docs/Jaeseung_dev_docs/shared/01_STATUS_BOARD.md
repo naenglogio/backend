@@ -19,7 +19,7 @@
 | BE-2 | 도메인 파일 세트              | schema/repo/service/router     |  ✅  | 뼈대 등록됨. 실로직은 BE-3~7에서 채움   |
 | BE-3 | 목록/상세 API                 | GET /ingredients, /{id}        |  ✅  | 상세·3D 화면(FE-2/FE-6) 실연동 가능      |
 | BE-4 | 등록 API                      | POST /ingredients              |  ✅  | 등록 화면(FE-3) 실연동 가능              |
-| BE-5 | 집계 API                      | GET /ingredients/summary       |  ⬜  | 완료 시 대시보드 실연동 가능             |
+| BE-5 | 집계 API                      | GET /ingredients/summary       |  ✅  | 대시보드 실연동(FE-5) 가능. 임박 기준 D-3, expiring_items top 5 |
 | BE-6 | local seed                    | scripts/seed_dev_data.py       |  ⬜  | 완료 시 FE가 실데이터로 화면 확인        |
 | BE-7 | 카메라 인식 API               | POST /ingredients/recognitions |  ⬜  | 완료 시 인식 화면 실연동 가능            |
 

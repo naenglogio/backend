@@ -4,7 +4,7 @@ DB는 repository에 위임하고, 여기서는 소유권·기본값·매핑 규�
 실제 로직은 BE-3(목록·상세), BE-4(등록), BE-5(집계), BE-7(인식)에서 채운다.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,23 @@ from app.domains.ingredients.schema import (
     ProductFreshnessProfileRead,
     ProductRead,
 )
+
+
+# 임박(D-day) 기준. 대시보드 카운트와 프론트 임박 배지가 같은 값을 봐야 하므로 상수로 고정한다.
+# expiration_date가 오늘부터 3일 이내면 임박이고, 이미 지난 항목도 임박에 포함한다.
+EXPIRING_WITHIN_DAYS = 3
+# 임박 카드에 노출할 최대 건수. 전체 임박 개수는 expiring_count로 따로 내려간다.
+EXPIRING_ITEMS_TOP_N = 5
+
+# 컨테이너 TZ가 UTC라 date.today()를 쓰면 KST 00~09시에 하루 전 날짜가 나와 D-day가
+# 하루 밀린다. 소비기한은 사용자가 보는 날짜 기준이어야 하므로 KST로 계산한다.
+# 한국은 DST가 없어 고정 오프셋으로 충분하다.
+_KST = timezone(timedelta(hours=9))
+
+
+def today_in_service_tz() -> date:
+    """소비기한 계산·임박 판정의 기준이 되는 '오늘'(KST)."""
+    return datetime.now(_KST).date()
 
 
 class IngredientNotFoundError(AppError):
@@ -191,7 +208,7 @@ def _resolve_expiration(
         return data.expiration_date, ExpirationStatus.CONFIRMED
 
     if profile is not None:
-        base_date = data.purchase_date or date.today()
+        base_date = data.purchase_date or today_in_service_tz()
         expiration_date = base_date + timedelta(days=profile.expiration_days)
         return expiration_date, profile.expiration_status
 
@@ -205,9 +222,16 @@ async def get_ingredient_summary(
 ) -> IngredientSummaryResponse:
     """GET /ingredients/summary — 대시보드 집계.
 
-    BE-5: 임박 D-day 상수 정의 + repository.summarize_active_by_user 매핑.
+    임박 판정 기준일은 사용자가 화면에서 보는 날짜여야 하므로 KST 기준 오늘을 쓴다.
     """
-    raise NotImplementedError("BE-5에서 구현")
+    raw = await repository.summarize_active_by_user(
+        session,
+        user_id=user_id,
+        today=today_in_service_tz(),
+        expiring_within_days=EXPIRING_WITHIN_DAYS,
+        expiring_top_n=EXPIRING_ITEMS_TOP_N,
+    )
+    return IngredientSummaryResponse.model_validate(raw)
 
 
 async def recognize_ingredient_image(

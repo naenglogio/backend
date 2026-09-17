@@ -3,7 +3,7 @@
 ORM은 이 모듈에서만 사용한다 (router 금지).
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -124,7 +124,60 @@ async def summarize_active_by_user(
 ) -> dict[str, object]:
     """대시보드 집계용 raw 결과.
 
-    BE-5: total / refrigerated_count / frozen_count / expiring_count / expiring_items
-    를 채워 반환. 키 이름은 service가 IngredientSummaryResponse로 매핑한다.
+    BE-5: 카운트는 한 번의 집계 쿼리(COUNT FILTER)로, 임박 목록은 정렬·limit이
+    필요하므로 별도 쿼리로 가져온다. 임박 판정 기준일(today)과 임계 일수는 업무
+    규칙이라 service가 넘겨주고, 여기서는 받은 값으로 질의만 한다.
+
+    임박 조건은 `expiration_date <= today + expiring_within_days`이므로 이미 지난
+    항목도 포함된다(대시보드에서 가장 먼저 조치해야 할 대상이다).
+    expiration_date가 null(소비기한 미확정)이면 임박으로 세지 않되 total에는 포함된다.
     """
-    raise NotImplementedError("BE-5에서 구현")
+    threshold = today + timedelta(days=expiring_within_days)
+    conditions = [Ingredient.user_id == user_id, Ingredient.is_deleted.is_(False)]
+    expiring_conditions = [
+        Ingredient.expiration_date.is_not(None),
+        Ingredient.expiration_date <= threshold,
+    ]
+
+    counts = (
+        await session.execute(
+            select(
+                func.count(),
+                func.count().filter(Ingredient.storage_type == 0),
+                func.count().filter(Ingredient.storage_type == 1),
+                func.count().filter(*expiring_conditions),
+            )
+            .select_from(Ingredient)
+            .where(*conditions)
+        )
+    ).one()
+    total, refrigerated_count, frozen_count, expiring_count = counts
+
+    # 급한 것부터. 같은 날짜면 id로 순서를 고정해 페이지 재요청 시 결과가 흔들리지 않게 한다.
+    expiring_rows = await session.execute(
+        select(
+            Ingredient.id,
+            Ingredient.name,
+            Ingredient.storage_type,
+            Ingredient.expiration_date,
+        )
+        .where(*conditions, *expiring_conditions)
+        .order_by(Ingredient.expiration_date.asc(), Ingredient.id.asc())
+        .limit(expiring_top_n)
+    )
+
+    return {
+        "total": total,
+        "refrigerated_count": refrigerated_count,
+        "frozen_count": frozen_count,
+        "expiring_count": expiring_count,
+        "expiring_items": [
+            {
+                "id": row.id,
+                "name": row.name,
+                "storage_type": row.storage_type,
+                "expiration_date": row.expiration_date,
+            }
+            for row in expiring_rows
+        ],
+    }
