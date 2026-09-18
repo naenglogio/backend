@@ -1,12 +1,11 @@
-"""idempotent seed 적재/삭제 로직.
+"""idempotent seed 적재/삭제 로직 (BE-6).
 
-모든 생성은 natural key(이메일, push_token, 카테고리/식품 이름, 상품 외부 ID,
-(user, food, product) 조합) 기준 get-or-create라서 여러 번 실행해도 행이
-늘어나지 않는다.
+모든 생성은 natural key 기준 get-or-create라서 여러 번 실행해도 행이 늘어나지 않는다.
+ingredient는 (user_id, name) — seed name이 행마다 유일하다.
 """
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -29,8 +28,15 @@ from app.domains.notifications.model import Notification
 from app.domains.products.enums import ProductSource
 from app.domains.products.model import Product
 from app.domains.users.model import User
+from app.domains.users.service import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
+
+_KST = timezone(timedelta(hours=9))
+
+
+def _today_kst() -> date:
+    return datetime.now(_KST).date()
 
 
 async def _get_or_create_user(
@@ -39,10 +45,16 @@ async def _get_or_create_user(
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is not None:
+        # placeholder/옛 해시면 FE 로그인이 안 되므로 시드 비밀번호로만 맞춘다.
+        if not verify_password(data.SEED_PASSWORD, user.password_hash):
+            user.password_hash = hash_password(data.SEED_PASSWORD)
+        user.nickname = nickname
+        user.notification_agreed = notification_agreed
+        await session.flush()
         return user
     user = User(
         email=email,
-        password_hash=data.SEED_PASSWORD_HASH_PLACEHOLDER,
+        password_hash=hash_password(data.SEED_PASSWORD),
         nickname=nickname,
         notification_agreed=notification_agreed,
         is_deleted=False,
@@ -97,33 +109,31 @@ async def _get_or_create_ingredient(
     product_id: int | None,
     profile_id: int | None,
 ) -> Ingredient:
-    # ingredient에는 natural key가 없어서 (user, food, product) 조합으로 존재 여부를 판단한다.
+    # name이 seed 행마다 유일하므로 (user_id, name)으로 멱등을 보장한다.
+    name = spec["name"]
     result = await session.execute(
-        select(Ingredient).where(
-            Ingredient.user_id == user_id,
-            Ingredient.food_id == food_id,
-            Ingredient.product_id == product_id,
-        )
+        select(Ingredient).where(Ingredient.user_id == user_id, Ingredient.name == name)
     )
     ingredient = result.scalar_one_or_none()
     if ingredient is not None:
         return ingredient
 
-    expiration_date = date.today() + timedelta(days=spec["expiration_offset_days"])
+    expiration_date = _today_kst() + timedelta(days=spec["expiration_offset_days"])
     deletion_reason = spec["deletion_reason"]
-    # BE-1: Ingredient에 name/quantity/unit과 int storage_type이 필수가 됨.
     ingredient = Ingredient(
         user_id=user_id,
         food_id=food_id,
         product_id=product_id,
         freshness_profile_id=profile_id,
-        name=spec.get("name") or spec["food_name"],
-        storage_type=int(spec["storage_type"]),  # 0=냉장, 1=냉동
+        name=name,
+        storage_type=int(spec["storage_type"]),
         quantity=int(spec.get("quantity", 1)),
         unit=spec.get("unit"),
         expiration_date=expiration_date,
         expiration_source=ExpirationSource(spec["expiration_source"]),
         expiration_status=ExpirationStatus(spec["expiration_status"]),
+        image_url=spec.get("image_url"),
+        memo=f"seed:{spec['key']}",
         is_deleted=spec["is_deleted"],
         deletion_reason=DeletionReason(deletion_reason) if deletion_reason else None,
     )
@@ -158,7 +168,9 @@ async def run_seed(session: AsyncSession) -> None:
     """여러 번 실행해도 안전하다(natural key 기준 get-or-create)."""
     user_ids: dict[str, int] = {}
     for u in data.SEED_USERS:
-        user = await _get_or_create_user(session, u["email"], u["nickname"], u["notification_agreed"])
+        user = await _get_or_create_user(
+            session, u["email"], u["nickname"], u["notification_agreed"]
+        )
         user_ids[u["email"]] = user.id
 
     for dv in data.SEED_DEVICES:
@@ -185,7 +197,7 @@ async def run_seed(session: AsyncSession) -> None:
         )
         product_ids[p["external_id"]] = product.id
 
-    profile_ids: dict[str, int] = {}  # key: product_external_id
+    profile_ids: dict[str, int] = {}
     for fp in data.SEED_FRESHNESS_PROFILES:
         food_id = food_ids[fp["food_name"]]
         product_id = product_ids[fp["product_external_id"]]
@@ -218,9 +230,11 @@ async def run_seed(session: AsyncSession) -> None:
         )
 
     await session.commit()
+
+    active_count = sum(1 for i in data.SEED_INGREDIENTS if not i["is_deleted"])
     logger.info(
         "Seed complete: users=%d devices=%d categories=%d foods=%d products=%d "
-        "profiles=%d ingredients=%d notifications=%d",
+        "profiles=%d ingredients=%d (active=%d) notifications=%d",
         len(data.SEED_USERS),
         len(data.SEED_DEVICES),
         len(data.SEED_CATEGORY_NAMES),
@@ -228,22 +242,39 @@ async def run_seed(session: AsyncSession) -> None:
         len(data.SEED_PRODUCTS),
         len(data.SEED_FRESHNESS_PROFILES),
         len(data.SEED_INGREDIENTS),
+        active_count,
         len(data.SEED_NOTIFICATIONS),
     )
 
 
 async def reset_seed_data(session: AsyncSession) -> None:
     """이 스크립트가 만든 seed 데이터만 지운다. 삭제 범위는 고정된 식별자로 제한된다."""
-    await session.execute(delete(User).where(User.email.in_(data.SEED_USER_EMAILS)))
+    # 예전 도메인(@naenglog.local) 시드도 같이 치워 로컬 DB를 깨끗이 맞춘다.
+    legacy_emails = [
+        "seed.user1@naenglog.local",
+        "seed.user2@naenglog.local",
+        "seed.user3@naenglog.local",
+    ]
+    emails = list({*data.SEED_USER_EMAILS, *legacy_emails})
+    await session.execute(delete(User).where(User.email.in_(emails)))
 
     food_names = [f["name"] for f in data.SEED_FOODS]
     product_external_ids = [p["external_id"] for p in data.SEED_PRODUCTS]
+    legacy_product_ids = [
+        "seed-prod-1001",
+        "seed-prod-1002",
+        "seed-prod-1003",
+        "seed-prod-1004",
+        "seed-prod-2001",
+        "seed-prod-2002",
+    ]
+    all_product_ids = list({*product_external_ids, *legacy_product_ids})
     food_ids_subq = select(Food.id).where(Food.name.in_(food_names))
 
     await session.execute(
         delete(ProductFreshnessProfile).where(ProductFreshnessProfile.food_id.in_(food_ids_subq))
     )
-    await session.execute(delete(Product).where(Product.external_id.in_(product_external_ids)))
+    await session.execute(delete(Product).where(Product.external_id.in_(all_product_ids)))
     await session.execute(delete(Food).where(Food.name.in_(food_names)))
     await session.execute(delete(Category).where(Category.name.in_(data.SEED_CATEGORY_NAMES)))
 

@@ -3,7 +3,10 @@
     python -m app.db.seed          # idempotent 적재
     python -m app.db.seed --reset  # 이 스크립트가 만든 seed 데이터만 삭제 후 재적재
 
-production에서는 실행을 차단한다.
+또는 문서 경로 별칭:
+    python scripts/seed_dev_data.py [--reset]
+
+APP_ENV=local|test 에서만 실행한다.
 """
 
 import argparse
@@ -16,6 +19,8 @@ from app.db.seed.runner import reset_seed_data, run_seed
 from app.db.session import async_session_factory
 
 logger = logging.getLogger(__name__)
+
+_ALLOWED_ENVS = frozenset({"local", "test"})
 
 
 async def _run(*, reset: bool) -> None:
@@ -34,8 +39,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if settings.APP_ENV == "production":
-        print("seed는 production 환경(APP_ENV=production)에서 실행할 수 없습니다.", file=sys.stderr)
+    if settings.APP_ENV not in _ALLOWED_ENVS:
+        print(
+            f"seed는 APP_ENV=local|test 에서만 실행할 수 있습니다. (현재: {settings.APP_ENV})",
+            file=sys.stderr,
+        )
         return 1
 
     asyncio.run(_run(reset=args.reset))
