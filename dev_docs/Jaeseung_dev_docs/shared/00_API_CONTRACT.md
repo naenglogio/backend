@@ -85,23 +85,34 @@ POST /api/v1/ingredients
 
 ---
 
-## 4. 카메라 인식 — 카메라 화면
+## 4. 카메라/바코드/영수증 인식 — 스캔 화면
 ```
-POST /api/v1/ingredients/recognitions   (multipart, image 필드)
+POST /api/v1/ingredients/recognitions   (multipart)
 ```
-- 이미지 없으면 에러.
-- **MVP는 fake adapter**로 목업 후보 반환 (실제 추론 X). 인터페이스 뒤에 fake 주입 — 실모델 교체 시 계약 불변.
-- 응답: `CameraRecognizeResponse` = `{ candidates: RecognitionCandidate[] }`
+- 필드: `image`(필수), `mode`(선택, 기본 `photo`) — `photo` | `barcode` | `receipt`
+- 이미지 없거나 비어 있으면 400.
+- **MVP는 fake adapter**로 목업 후보 반환 (실제 추론/OCR/바코드 디코딩 X).
+  인터페이스(`RecognizerPort`) 뒤에 모드별 fake 주입 — 실모델 교체 시 계약 불변.
+  `if mock_mode:` 분기 금지.
+- 응답: `CameraRecognizeResponse` = `{ candidates: RecognitionCandidate[] }` (세 모드 공통)
 
 **RecognitionCandidate**
 | 필드 | 타입 | 비고 |
 |------|------|------|
-| food_id | number\|null | 매칭 실패 시 null |
-| name | string | |
+| food_id | number\|null | foods 매칭 실패 시 null |
+| name | string | `[MOCK]` 접두어(목업). 등록 프리필용 |
 | category | string\|null | 표시용 |
 | confidence | number | 0~1, 내림차순 정렬 |
 
+**모드별 후보 규칙 (MVP)**
+| mode | 후보 수 | 비고 |
+|------|---------|------|
+| photo | 3~5 | 식재료 사진 인식 |
+| barcode | 1 (또는 매칭 실패 시 0) | 상품 1건 |
+| receipt | 1~N | 영수증 라인별 후보 |
+
 - 이 응답은 등록 화면 프리필(food_id, name, category)로 바로 사용.
+- 후보 `food_id`는 seed foods와 매칭되게 둔다(BE-6).
 
 ---
 

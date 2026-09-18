@@ -21,7 +21,7 @@
 | BE-4 | 등록 API                      | POST /ingredients              |  ✅  | 등록 화면(FE-3) 실연동 가능              |
 | BE-5 | 집계 API                      | GET /ingredients/summary       |  ✅  | 대시보드 실연동(FE-5) 가능. 임박 기준 D-3, expiring_items top 5 |
 | BE-6 | local seed                    | scripts/seed_dev_data.py       |  ✅  | FE 실데이터 확인 가능. 로그인 `seed.user1@example.invalid` / `seedpass123`, user1 활성 12건 |
-| BE-7 | 카메라 인식 API               | POST /ingredients/recognitions |  ⬜  | 완료 시 인식 화면 실연동 가능            |
+| BE-7 | 스캔 인식 API                 | POST /ingredients/recognitions |  ✅  | FE-4 실연동 가능. mode=photo\|barcode\|receipt, MVP fake adapter |
 
 ## 프론트 상태
 

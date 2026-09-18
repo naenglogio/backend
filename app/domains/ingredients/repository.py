@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.categories.model import Category
 from app.domains.foods.model import Food
 from app.domains.freshness.enums import ExpirationStatus
 from app.domains.freshness.model import ProductFreshnessProfile
@@ -34,9 +35,7 @@ async def list_active_by_user(
     if expiration_status is not None:
         conditions.append(Ingredient.expiration_status == expiration_status)
 
-    total = await session.scalar(
-        select(func.count()).select_from(Ingredient).where(*conditions)
-    )
+    total = await session.scalar(select(func.count()).select_from(Ingredient).where(*conditions))
 
     result = await session.execute(
         select(Ingredient)
@@ -87,9 +86,7 @@ async def get_freshness_profile_by_id(
 ) -> ProductFreshnessProfile | None:
     """상세 응답 nested freshness_profile용."""
     result = await session.execute(
-        select(ProductFreshnessProfile).where(
-            ProductFreshnessProfile.id == freshness_profile_id
-        )
+        select(ProductFreshnessProfile).where(ProductFreshnessProfile.id == freshness_profile_id)
     )
     return result.scalar_one_or_none()
 
@@ -181,3 +178,25 @@ async def summarize_active_by_user(
             for row in expiring_rows
         ],
     }
+
+
+async def list_foods_with_categories_by_names(
+    session: AsyncSession,
+    *,
+    names: list[str],
+) -> dict[str, tuple[int, str | None]]:
+    """food.name → (food_id, category_name). 인식 후보 food_id 매칭용.
+
+    같은 이름이 여러 건이면 먼저 나온 것을 쓴다(seed는 name 유일).
+    """
+    if not names:
+        return {}
+    result = await session.execute(
+        select(Food.id, Food.name, Category.name)
+        .join(Category, Category.id == Food.category_id)
+        .where(Food.name.in_(names))
+    )
+    mapping: dict[str, tuple[int, str | None]] = {}
+    for food_id, food_name, category_name in result.all():
+        mapping.setdefault(food_name, (food_id, category_name))
+    return mapping

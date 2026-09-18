@@ -6,13 +6,14 @@ ORM 금지. 실제 동작은 BE-3~7에서 service/repository를 채운 뒤 살�
 경로 순서 주의: /summary, /recognitions 를 /{ingredient_id} 보다 먼저 둔다.
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, File, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
 from app.api.dependencies import CurrentUserId, DBSession, PageQuery
 from app.api.schemas import COMMON_ERROR_RESPONSES, Page
 from app.domains.freshness.enums import ExpirationStatus
+from app.domains.ingredients.recognition import RecognitionMode
 from app.domains.ingredients.schema import (
     CameraRecognizeResponse,
     Ingredient,
@@ -81,15 +82,20 @@ async def get_summary(
 async def create_recognition(
     session: DBSession,
     user_id: CurrentUserId,
-    image: Annotated[UploadFile, File(description="식재료 사진")],
+    image: Annotated[UploadFile, File(description="스캔 이미지(사진/바코드/영수증)")],
+    mode: Annotated[
+        Literal["photo", "barcode", "receipt"],
+        Form(description="인식 모드. 기본 photo"),
+    ] = "photo",
 ) -> CameraRecognizeResponse:
-    """카메라 인식 후보. BE-7에서 fake adapter 구현."""
+    """스캔 인식 후보. MVP는 모드별 fake adapter."""
     image_bytes = await image.read()
     return await recognize_ingredient_image(
         session,
         user_id=user_id,
         image_bytes=image_bytes,
         filename=image.filename,
+        mode=RecognitionMode(mode),
     )
 
 

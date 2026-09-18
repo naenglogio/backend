@@ -14,6 +14,11 @@ from app.domains.freshness.enums import ExpirationStatus
 from app.domains.freshness.model import ProductFreshnessProfile
 from app.domains.ingredients import repository
 from app.domains.ingredients.model import Ingredient as IngredientModel
+from app.domains.ingredients.recognition import (
+    RecognitionMode,
+    RecognizerPort,
+    build_fake_recognizer_registry,
+)
 from app.domains.ingredients.schema import (
     CameraRecognizeResponse,
     Ingredient,
@@ -22,7 +27,11 @@ from app.domains.ingredients.schema import (
     IngredientSummaryResponse,
     ProductFreshnessProfileRead,
     ProductRead,
+    RecognitionCandidate,
 )
+
+# MVP: fake 레지스트리. 실모델 도입 시 이 한곳만 교체하면 router/service 계약은 그대로다.
+_RECOGNIZERS: dict[str, RecognizerPort] = build_fake_recognizer_registry()
 
 
 # 임박(D-day) 기준. 대시보드 카운트와 프론트 임박 배지가 같은 값을 봐야 하므로 상수로 고정한다.
@@ -74,6 +83,22 @@ class FreshnessProfileNotFoundError(AppError):
     status_code = 422
 
 
+class ImageMissingError(AppError):
+    """인식 요청에 이미지 바이트가 없을 때."""
+
+    code = "IMAGE_MISSING"
+    message = "인식할 이미지가 필요합니다."
+    status_code = 400
+
+
+class UnsupportedRecognitionModeError(AppError):
+    """지원하지 않는 mode 값."""
+
+    code = "UNSUPPORTED_RECOGNITION_MODE"
+    message = "지원하지 않는 인식 모드입니다."
+    status_code = 422
+
+
 async def list_ingredients(
     session: AsyncSession,
     *,
@@ -115,9 +140,7 @@ async def get_ingredient_detail(
 
     product = None
     if ingredient.product_id is not None:
-        product_row = await repository.get_product_by_id(
-            session, product_id=ingredient.product_id
-        )
+        product_row = await repository.get_product_by_id(session, product_id=ingredient.product_id)
         product = ProductRead.model_validate(product_row) if product_row else None
 
     freshness_profile = None
@@ -240,9 +263,44 @@ async def recognize_ingredient_image(
     user_id: int,
     image_bytes: bytes,
     filename: str | None = None,
+    mode: RecognitionMode = RecognitionMode.PHOTO,
+    recognizer: RecognizerPort | None = None,
 ) -> CameraRecognizeResponse:
-    """POST /ingredients/recognitions — 카메라 후보(MVP fake).
+    """POST /ingredients/recognitions — 스캔 후보(MVP fake).
 
-    BE-7: fake adapter 주입. session은 후보 매칭용으로만 쓸 수 있음.
+    user_id는 인증 경계 확인용으로만 받고, 인식 자체는 사용자 데이터를 보지 않는다.
+    food_id 매칭만 DB(session)를 쓴다.
     """
-    raise NotImplementedError("BE-7에서 구현")
+    _ = user_id
+    if not image_bytes:
+        raise ImageMissingError()
+
+    adapter = recognizer or _RECOGNIZERS.get(mode.value)
+    if adapter is None:
+        raise UnsupportedRecognitionModeError(details={"mode": mode.value})
+
+    hints = await adapter.recognize(image_bytes=image_bytes, filename=filename)
+    food_map = await repository.list_foods_with_categories_by_names(
+        session, names=[h.food_name for h in hints]
+    )
+
+    candidates: list[RecognitionCandidate] = []
+    for hint in hints:
+        food_id: int | None = None
+        category = hint.category_name
+        matched = food_map.get(hint.food_name)
+        if matched is not None:
+            food_id, db_category = matched
+            # DB에 카테고리가 있으면 그걸 우선(프리필 정확도).
+            category = db_category or category
+        candidates.append(
+            RecognitionCandidate(
+                food_id=food_id,
+                name=f"[MOCK] {hint.food_name}",
+                category=category,
+                confidence=hint.confidence,
+            )
+        )
+
+    candidates.sort(key=lambda c: c.confidence, reverse=True)
+    return CameraRecognizeResponse(candidates=candidates)

@@ -34,11 +34,13 @@ FE-1, FE-3 완료. (BE-7 완료면 실연동, 아니면 목업 선개발)
 
 ## UI 명세 (와이어프레임 "스캔 (바코드/영수증)" 기준)
 > 디자인은 `../shared/02_DESIGN_SYSTEM.md`를 따른다.
-> ※ 와이어프레임은 바코드/영수증 탭 구조지만, 재성 담당(BE-7)은 **식재료 사진 인식**이다. 탭 구조는 유지하되 MVP는 사진 인식 흐름으로 구현하고, 바코드/영수증은 자리(placeholder)만 둬도 됨. 팀과 범위 협의.
+> ※ 와이어프레임은 바코드/영수증/사진 탭 구조. BE-7은 **세 모드 모두**
+> `POST /ingredients/recognitions` + `mode` 필드로 실연동한다(MVP는 fake adapter).
+> 응답 스키마는 동일(`CameraRecognizeResponse`)이라 후보 카드 → 등록 프리필 흐름을 재사용.
 
 **레이아웃 (위→아래)**
 1. 상단: "스캔" 타이틀
-2. **모드 탭**: SegmentedControl(바코드 / 영수증 / 사진) — MVP는 사진 인식 활성
+2. **모드 탭**: SegmentedControl(바코드 / 영수증 / 사진) — 각 탭이 `mode=barcode|receipt|photo`로 API 호출
 3. **카메라 프리뷰** 영역: 점선 프레임 `rounded-card`, "카메라 프리뷰" 안내. 권한 거부 시 업로드 버튼 폴백.
 4. **인식 결과 (검수)** 카드: 인식된 후보를 표시
    - 후보명 (예: 서울우유 900ml) + confidence %
