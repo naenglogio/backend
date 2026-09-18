@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.core.password import Password
+
 
 class NotificationAgreementUpdate(BaseModel):
     notification_agreed: bool
@@ -13,8 +15,7 @@ class NicknameUpdate(BaseModel):
 
 class PasswordUpdate(BaseModel):
     current_password: str = Field(min_length=1, max_length=72)
-    # bcrypt는 72바이트를 넘는 입력을 다루지 못하므로 상한을 둔다. (signup과 동일)
-    new_password: str = Field(min_length=8, max_length=72)
+    new_password: Password
 
 
 class ProfileRead(BaseModel):

@@ -105,6 +105,12 @@ class PasswordResetNotVerifiedError(AppError):
     status_code = 400
 
 
+class SameAsOldPasswordError(AppError):
+    code = "SAME_AS_OLD_PASSWORD"
+    message = "기존 비밀번호와 다른 비밀번호를 입력해주세요."
+    status_code = 400
+
+
 # bcrypt로 비밀번호 해싱
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -384,6 +390,9 @@ async def complete_password_reset(session: AsyncSession, data: PasswordResetComp
     user = await _get_active_user_by_email(session, email)
     if user is None:
         raise PasswordResetNotVerifiedError()
+
+    if verify_password(data.new_password, user.password_hash):
+        raise SameAsOldPasswordError()
 
     user.password_hash = hash_password(data.new_password)
     await session.execute(delete(PasswordReset).where(PasswordReset.email == email))
