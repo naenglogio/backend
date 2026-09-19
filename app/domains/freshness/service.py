@@ -6,6 +6,7 @@ app/batch/freshness_data_import.py가 이 모듈을 호출해 실제 저장을 �
 """
 
 import logging
+import math
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,14 +25,16 @@ logger = logging.getLogger(__name__)
 # 실제 카테고리 매핑이 파이프라인 계약에 추가되면 이 fallback은 없앤다.
 UNCLASSIFIED_CATEGORY_NAME = "미분류"
 
-# 파이프라인이 보내는 source 라벨 -> 도메인 enum 매핑. 계약이 아직 예시 단계라
+# 파이프라인 selected_source(KURLY/MFDS/MANUAL, gold_freshness 계약) -> 도메인 enum 매핑.
 # 알려지지 않은 값은 보수적으로 PRODUCT_DISCLOSURE로 두고 로그를 남긴다.
 _EXPIRATION_SOURCE_MAP: dict[str, ExpirationSource] = {
-    "INTEGRATED": ExpirationSource.PRODUCT_DISCLOSURE,
-    "OCR": ExpirationSource.PACKAGE_OCR,
+    "KURLY": ExpirationSource.PRODUCT_DISCLOSURE,
     "MFDS": ExpirationSource.MFDS_REFERENCE,
+    "MANUAL": ExpirationSource.USER_INPUT,
 }
-_UNIT_TO_DAYS = {"DAY": 1, "WEEK": 7, "MONTH": 30}
+# YEAR/HOUR은 gold_freshness.expiration_unit 계약에 있지만 이전엔 누락돼 있었다.
+# HOUR은 배수로 표현할 수 없어 _map_expiration_days에서 별도로 올림(ceil) 처리한다.
+_UNIT_TO_DAYS = {"DAY": 1, "WEEK": 7, "MONTH": 30, "YEAR": 365}
 _CONFIDENCE_CONFIRMED_THRESHOLD = 0.8
 
 
@@ -55,10 +58,15 @@ def _map_expiration_status(confidence: float, review_status: str) -> ExpirationS
 
 
 def _map_expiration_days(value: int, unit: str) -> int:
-    multiplier = _UNIT_TO_DAYS.get(unit.upper())
+    unit_upper = unit.upper()
+    if unit_upper == "HOUR":
+        # 시간 단위는 배수로 표현되지 않는다. 내림(floor)하면 '이미 지남'처럼
+        # 보일 수 있어(예: 12시간 -> 0일) 최소 1일을 보장하며 올림한다.
+        return max(1, math.ceil(value / 24))
+    multiplier = _UNIT_TO_DAYS.get(unit_upper)
     if multiplier is None:
         raise ValueError(f"지원하지 않는 expiration_unit: {unit}")
-    return value * multiplier
+    return math.ceil(value * multiplier)
 
 
 def _map_storage_type(raw_storage_type: str) -> StorageType:

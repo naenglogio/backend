@@ -17,10 +17,14 @@ from app.domains.ingredients.model import Ingredient as IngredientModel
 from app.domains.ingredients.recognition import (
     CatalogFood,
     CatalogProduct,
+    CatalogProductImage,
     RecognitionCatalog,
     RecognitionMode,
     RecognizerPort,
-    build_fake_recognizer_registry,
+    build_recognizer_registry,
+)
+from app.domains.ingredients.recognition.embedding_model import (
+    MODEL_VERSION as IMAGE_EMBEDDING_MODEL_VERSION,
 )
 from app.domains.ingredients.schema import (
     CameraRecognizeResponse,
@@ -33,8 +37,8 @@ from app.domains.ingredients.schema import (
     RecognitionCandidate,
 )
 
-# MVP: fake 레지스트리. 실모델 도입 시 이 한곳만 교체하면 router/service 계약은 그대로다.
-_RECOGNIZERS: dict[str, RecognizerPort] = build_fake_recognizer_registry()
+# 모드 -> adapter. receipt는 아직 MVP fake, photo는 임베딩 검색(실모델).
+_RECOGNIZERS: dict[str, RecognizerPort] = build_recognizer_registry()
 
 
 # 임박(D-day) 기준. 대시보드 카운트와 프론트 임박 배지가 같은 값을 봐야 하므로 상수로 고정한다.
@@ -271,8 +275,8 @@ async def recognize_ingredient_image(
 ) -> CameraRecognizeResponse:
     """POST /ingredients/recognitions — 스캔 후보 추정.
 
-    MVP는 실추론 대신 DB 카탈로그(foods/products)에서 이미지 바이트 기준으로
-    결정적으로 고른다. user_id는 인증 경계 확인용.
+    photo 모드는 DINOv2 임베딩 최근접 이웃 검색(실모델), receipt는 아직 MVP fake.
+    user_id는 인증 경계 확인용.
     """
     _ = user_id
     if not image_bytes:
@@ -283,6 +287,14 @@ async def recognize_ingredient_image(
         raise UnsupportedRecognitionModeError(details={"mode": mode.value})
 
     food_rows, product_rows = await repository.list_recognition_catalog(session)
+    # 이미지 임베딩 갤러리는 상당히 커질 수 있어 photo 모드에서만 끌어온다.
+    product_image_rows = (
+        await repository.list_product_image_embeddings(
+            session, model_version=IMAGE_EMBEDDING_MODEL_VERSION
+        )
+        if mode == RecognitionMode.PHOTO
+        else []
+    )
     catalog = RecognitionCatalog(
         foods=[
             CatalogFood(food_id=fid, food_name=fname, category_name=cat)
@@ -298,6 +310,17 @@ async def recognize_ingredient_image(
                 category_name=cat,
             )
             for pid, ext, pname, fid, fname, cat in product_rows
+        ],
+        product_images=[
+            CatalogProductImage(
+                external_id=ext,
+                product_name=pname,
+                embedding=embedding,
+                food_id=fid,
+                food_name=fname,
+                category_name=cat,
+            )
+            for ext, embedding, fid, fname, cat, pname in product_image_rows
         ],
     )
 

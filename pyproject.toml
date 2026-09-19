@@ -16,7 +16,10 @@ dependencies = [
     "email-validator",
     "python-multipart",
     "pillow",
-    "pyzbar",
+    "pyarrow",
+    "pgvector",
+    "onnxruntime",
+    "numpy",
 ]
 
 [dependency-groups]

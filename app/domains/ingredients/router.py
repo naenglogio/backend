@@ -82,9 +82,9 @@ async def get_summary(
 async def create_recognition(
     session: DBSession,
     user_id: CurrentUserId,
-    image: Annotated[UploadFile, File(description="스캔 이미지(사진/바코드/영수증)")],
+    image: Annotated[UploadFile, File(description="스캔 이미지(사진/영수증)")],
     mode: Annotated[
-        Literal["photo", "barcode", "receipt"],
+        Literal["photo", "receipt"],
         Form(description="인식 모드. 기본 photo"),
     ] = "photo",
 ) -> CameraRecognizeResponse:

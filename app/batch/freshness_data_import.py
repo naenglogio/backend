@@ -8,10 +8,12 @@
 run_import()에 넘기면 된다. 지금은 로컬 개발용 MockFreshnessDataSource만 있다.
 """
 
+import argparse
 import asyncio
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from app.db.session import async_session_factory
@@ -41,7 +43,7 @@ class MockFreshnessDataSource:
                 expiration_value=7,
                 expiration_unit="DAY",
                 expiration_basis="AFTER_RECEIPT",
-                source="INTEGRATED",
+                source="KURLY",
                 confidence=0.91,
                 review_status="APPROVED",
                 product_source=ProductSource.KURLY,
@@ -54,7 +56,7 @@ class MockFreshnessDataSource:
                 expiration_value=6,
                 expiration_unit="MONTH",
                 expiration_basis="AFTER_RECEIPT",
-                source="INTEGRATED",
+                source="MFDS",
                 confidence=0.62,
                 review_status="PENDING",
                 product_source=ProductSource.N_MART,
@@ -87,8 +89,34 @@ async def run_import(source: FreshnessDataSource) -> ImportSummary:
     return summary
 
 
-def main() -> int:
-    summary = asyncio.run(run_import(MockFreshnessDataSource()))
+def _build_source(bundle_dir: Path | None) -> FreshnessDataSource:
+    if bundle_dir is None:
+        return MockFreshnessDataSource()
+    # 지연 import: gold_bundle 모듈은 pyarrow에 의존하므로, bundle-dir을 실제로
+    # 쓰는 경로에서만 그 의존성을 요구한다.
+    from app.batch.adapters.pipeline_source import GoldBundleFreshnessDataSource
+
+    return GoldBundleFreshnessDataSource(bundle_dir)
+
+
+def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO)
+    parser = argparse.ArgumentParser(
+        description=(
+            "정제 완료된 freshness 레코드를 DB에 import한다. "
+            "--bundle-dir을 주면 파이프라인 Gold export bundle을, 안 주면 로컬 Mock 데이터를 쓴다."
+        )
+    )
+    parser.add_argument(
+        "--bundle-dir",
+        type=Path,
+        default=None,
+        help="파이프라인 backend_publish가 만든 export bundle 디렉터리(manifest.json 포함)",
+    )
+    args = parser.parse_args(argv)
+
+    source = _build_source(args.bundle_dir)
+    summary = asyncio.run(run_import(source))
     logger.info(
         "Freshness import finished: succeeded=%s failed=%s", summary.succeeded, summary.failed
     )

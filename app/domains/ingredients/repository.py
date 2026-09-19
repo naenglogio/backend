@@ -13,7 +13,7 @@ from app.domains.foods.model import Food
 from app.domains.freshness.enums import ExpirationStatus
 from app.domains.freshness.model import ProductFreshnessProfile
 from app.domains.ingredients.model import Ingredient
-from app.domains.products.model import Product
+from app.domains.products.model import Product, ProductImageEmbedding
 
 
 async def list_active_by_user(
@@ -237,3 +237,32 @@ async def list_recognition_catalog(
         for product_id, external_id, product_name, food_id, food_name, category_name in product_rows
     ]
     return foods, products
+
+
+async def list_product_image_embeddings(
+    session: AsyncSession, *, model_version: str
+) -> list[tuple[str, list[float], int, str, str, str]]:
+    """사진 인식(임베딩 검색)용 갤러리. photo 모드에서만 부른다(다른 모드엔 불필요).
+
+    model_version이 다른 행은 다른 벡터 공간이라 아예 안 가져온다.
+
+    반환: (external_id, embedding, food_id, food_name, category_name, product_name)
+    """
+    rows = await session.execute(
+        select(
+            Product.external_id,
+            ProductImageEmbedding.embedding,
+            Food.id,
+            Food.name,
+            Category.name,
+            Product.name,
+        )
+        .join(Product, Product.id == ProductImageEmbedding.product_id)
+        .join(Food, Food.id == Product.food_id)
+        .join(Category, Category.id == Food.category_id)
+        .where(ProductImageEmbedding.model_version == model_version)
+    )
+    return [
+        (external_id, list(embedding), food_id, food_name, category_name, product_name)
+        for external_id, embedding, food_id, food_name, category_name, product_name in rows
+    ]

@@ -12,7 +12,6 @@ from app.domains.ingredients.recognition.port import (
     CatalogFood,
     RecognitionCatalog,
     RecognitionHint,
-    RecognizerPort,
 )
 
 
@@ -41,6 +40,10 @@ def _confidences(count: int, *, start: float = 0.95, step: float = 0.07) -> list
 
 class CatalogPhotoRecognizer:
     """사진 인식 — 이미지 색 단서로 카탈로그 foods를 재순위한다.
+
+    embedding_recognizer.EmbeddingPhotoRecognizer로 대체돼 레지스트리에서는
+    더 안 쓴다(실사진 검증 결과 DINOv2 임베딩이 낫다고 판단). 참고/폴백용으로
+    코드는 남겨둔다.
 
     실비전 모델은 아니지만, 시금치(초록) 사진이 우유부터 나오는 식의
     이미지 무시 추정은 하지 않는다. 단서를 못 뽑으면 보수적으로 낮은
@@ -124,50 +127,6 @@ class CatalogPhotoRecognizer:
         ]
 
 
-class CatalogBarcodeRecognizer:
-    """바코드 — 이미지에서 코드를 읽고 products.external_id와 매칭한다.
-
-    디코딩 실패 시 빈 목록(엉뚱한 상품 추정 금지).
-    코드는 읽혔지만 카탈로그에 없으면 food_id=null 미등록 후보 1건.
-    """
-
-    async def recognize(
-        self,
-        *,
-        image_bytes: bytes,
-        filename: str | None = None,
-        catalog: RecognitionCatalog,
-    ) -> list[RecognitionHint]:
-        _ = filename
-        from app.domains.ingredients.recognition.barcode_decode import decode_barcodes
-
-        codes = decode_barcodes(image_bytes)
-        if not codes:
-            return []
-
-        code = codes[0]
-        products = list(catalog.products)
-        for product in products:
-            if product.external_id == code:
-                return [
-                    RecognitionHint(
-                        food_id=product.food_id,
-                        name=_strip_mock_prefix(product.product_name) or product.food_name,
-                        category_name=product.category_name,
-                        confidence=0.98,
-                    )
-                ]
-
-        return [
-            RecognitionHint(
-                food_id=None,
-                name=f"미등록 상품 ({code})",
-                category_name=None,
-                confidence=0.55,
-            )
-        ]
-
-
 class CatalogReceiptRecognizer:
     """영수증 — 카탈로그 foods에서 여러 라인 추정."""
 
@@ -203,18 +162,7 @@ class CatalogReceiptRecognizer:
         ]
 
 
-def build_fake_recognizer_registry() -> dict[str, RecognizerPort]:
-    """모드 → 어댑터. 실모델 교체 시 이 레지스트리 항목만 갈아끼운다."""
-    return {
-        "photo": CatalogPhotoRecognizer(),
-        "barcode": CatalogBarcodeRecognizer(),
-        "receipt": CatalogReceiptRecognizer(),
-    }
-
-
 __all__ = [
-    "CatalogBarcodeRecognizer",
     "CatalogPhotoRecognizer",
     "CatalogReceiptRecognizer",
-    "build_fake_recognizer_registry",
 ]

@@ -131,13 +131,6 @@ SEED_PRODUCTS: list[dict[str, Any]] = [
         "name": "[MOCK] N마트 새우",
         "food_name": "새우",
     },
-    # 실바코드 예시(화면 테스트용 EAN). 인식 시 external_id로 매칭된다.
-    {
-        "external_id": "8809841063326",
-        "source": "N_MART",
-        "name": "스낵 과자",
-        "food_name": "과자",
-    },
     # 시나리오: 비활성 상품 — products 테이블에 is_active가 없어
     # "어떤 ingredient/프로필에도 연결되지 않은 카탈로그 행"으로 근사한다.
     {

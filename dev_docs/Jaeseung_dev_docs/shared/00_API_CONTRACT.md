@@ -85,19 +85,21 @@ POST /api/v1/ingredients
 
 ---
 
-## 4. 카메라/바코드/영수증 인식 — 스캔 화면
+## 4. 카메라/영수증 인식 — 스캔 화면
 ```
 POST /api/v1/ingredients/recognitions   (multipart)
 ```
-- 필드: `image`(필수), `mode`(선택, 기본 `photo`) — `photo` | `barcode` | `receipt`
+- 필드: `image`(필수), `mode`(선택, 기본 `photo`) — `photo` | `receipt`
+- 바코드 모드는 제거됨(2026-09-19) — 실물 바코드(EAN/GTIN)와 `products.external_id`(컬리 내부 상품 ID)가
+  다른 값이라 애초에 매칭이 안 되는 구조였음. 재도입하려면 별도 바코드 DB 연동이 선행돼야 함.
 - 이미지 없거나 비어 있으면 400.
-- **MVP는 실추론/OCR/바코드 디코딩을 하지 않는다.**
+- **MVP는 실추론/OCR을 하지 않는다.**
   DB에 있는 foods/products 카탈로그에서 이미지 바이트 기준으로 후보를 **추정**한다.
   인터페이스(`RecognizerPort`) 뒤 adapter만 갈아끼우면 실모델로 교체 가능.
   `if mock_mode:` 분기 금지.
 - 후보 name/category/food_id는 카탈로그 실데이터. `[MOCK]` 접두어는 붙이지 않는다
   (상품명에 시드용 접두어가 있으면 응답 전에 제거).
-- 응답: `CameraRecognizeResponse` = `{ candidates: RecognitionCandidate[] }` (세 모드 공통)
+- 응답: `CameraRecognizeResponse` = `{ candidates: RecognitionCandidate[] }` (두 모드 공통)
 
 **RecognitionCandidate**
 | 필드 | 타입 | 비고 |
@@ -111,7 +113,6 @@ POST /api/v1/ingredients/recognitions   (multipart)
 | mode | 후보 수 | 비고 |
 |------|---------|------|
 | photo | 3~5 | 이미지 색 단서(배경 제외)로 foods 재순위. 실비전 모델은 아님 |
-| barcode | 0~1 | 이미지에서 바코드 디코딩 → `products.external_id` 매칭. 미검출이면 빈 목록, 미등록이면 food_id=null |
 | receipt | 1~N | foods 카탈로그 라인 추정 |
 
 - 이 응답은 등록 화면 프리필(food_id, name, category)로 바로 사용.

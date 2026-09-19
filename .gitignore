@@ -17,6 +17,9 @@ htmlcov/
 # 로그
 *.log
 
+# ONNX 모델 파일 — Dockerfile 빌드 시 다운로드한다. 커밋하지 않는다(용량).
+var/models/
+
 # 에디터
 .vscode/
 .idea/
