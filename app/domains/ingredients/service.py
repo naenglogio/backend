@@ -15,6 +15,9 @@ from app.domains.freshness.model import ProductFreshnessProfile
 from app.domains.ingredients import repository
 from app.domains.ingredients.model import Ingredient as IngredientModel
 from app.domains.ingredients.recognition import (
+    CatalogFood,
+    CatalogProduct,
+    RecognitionCatalog,
     RecognitionMode,
     RecognizerPort,
     build_fake_recognizer_registry,
@@ -266,10 +269,10 @@ async def recognize_ingredient_image(
     mode: RecognitionMode = RecognitionMode.PHOTO,
     recognizer: RecognizerPort | None = None,
 ) -> CameraRecognizeResponse:
-    """POST /ingredients/recognitions — 스캔 후보(MVP fake).
+    """POST /ingredients/recognitions — 스캔 후보 추정.
 
-    user_id는 인증 경계 확인용으로만 받고, 인식 자체는 사용자 데이터를 보지 않는다.
-    food_id 매칭만 DB(session)를 쓴다.
+    MVP는 실추론 대신 DB 카탈로그(foods/products)에서 이미지 바이트 기준으로
+    결정적으로 고른다. user_id는 인증 경계 확인용.
     """
     _ = user_id
     if not image_bytes:
@@ -279,28 +282,34 @@ async def recognize_ingredient_image(
     if adapter is None:
         raise UnsupportedRecognitionModeError(details={"mode": mode.value})
 
-    hints = await adapter.recognize(image_bytes=image_bytes, filename=filename)
-    food_map = await repository.list_foods_with_categories_by_names(
-        session, names=[h.food_name for h in hints]
+    food_rows, product_rows = await repository.list_recognition_catalog(session)
+    catalog = RecognitionCatalog(
+        foods=[
+            CatalogFood(food_id=fid, food_name=fname, category_name=cat)
+            for fid, fname, cat in food_rows
+        ],
+        products=[
+            CatalogProduct(
+                product_id=pid,
+                external_id=ext,
+                product_name=pname,
+                food_id=fid,
+                food_name=fname,
+                category_name=cat,
+            )
+            for pid, ext, pname, fid, fname, cat in product_rows
+        ],
     )
 
-    candidates: list[RecognitionCandidate] = []
-    for hint in hints:
-        food_id: int | None = None
-        category = hint.category_name
-        matched = food_map.get(hint.food_name)
-        if matched is not None:
-            food_id, db_category = matched
-            # DB에 카테고리가 있으면 그걸 우선(프리필 정확도).
-            category = db_category or category
-        candidates.append(
-            RecognitionCandidate(
-                food_id=food_id,
-                name=f"[MOCK] {hint.food_name}",
-                category=category,
-                confidence=hint.confidence,
-            )
+    hints = await adapter.recognize(image_bytes=image_bytes, filename=filename, catalog=catalog)
+    candidates = [
+        RecognitionCandidate(
+            food_id=hint.food_id,
+            name=hint.name,
+            category=hint.category_name,
+            confidence=hint.confidence,
         )
-
+        for hint in hints
+    ]
     candidates.sort(key=lambda c: c.confidence, reverse=True)
     return CameraRecognizeResponse(candidates=candidates)

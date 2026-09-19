@@ -2,6 +2,11 @@
 
 WORKDIR /app
 
+# pyzbar 바코드 디코딩에 필요
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libzbar0 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml .
 RUN pip install --no-cache-dir -e .
 

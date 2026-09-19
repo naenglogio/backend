@@ -200,3 +200,40 @@ async def list_foods_with_categories_by_names(
     for food_id, food_name, category_name in result.all():
         mapping.setdefault(food_name, (food_id, category_name))
     return mapping
+
+
+async def list_recognition_catalog(
+    session: AsyncSession,
+) -> tuple[list[tuple[int, str, str | None]], list[tuple[int, str, str, int, str, str | None]]]:
+    """인식용 카탈로그: foods + (비활성 제외) products.
+
+    반환:
+    - foods: (food_id, food_name, category_name)
+    - products: (product_id, external_id, product_name, food_id, food_name, category_name)
+    """
+    food_rows = await session.execute(
+        select(Food.id, Food.name, Category.name)
+        .join(Category, Category.id == Food.category_id)
+        .order_by(Food.id.asc())
+    )
+    foods = [(food_id, food_name, category_name) for food_id, food_name, category_name in food_rows]
+
+    product_rows = await session.execute(
+        select(
+            Product.id,
+            Product.external_id,
+            Product.name,
+            Food.id,
+            Food.name,
+            Category.name,
+        )
+        .join(Food, Food.id == Product.food_id)
+        .join(Category, Category.id == Food.category_id)
+        .where(Product.external_id != "MOCK-INACTIVE")
+        .order_by(Product.id.asc())
+    )
+    products = [
+        (product_id, external_id, product_name, food_id, food_name, category_name)
+        for product_id, external_id, product_name, food_id, food_name, category_name in product_rows
+    ]
+    return foods, products

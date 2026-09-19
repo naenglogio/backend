@@ -13,15 +13,13 @@ POST /api/v1/ingredients/recognitions   (multipart)
 fields: image (필수), mode=photo|barcode|receipt (기본 photo)
 ```
 - 이미지 없거나 바이트가 비면 400.
-- **실제 추론/OCR/바코드 디코딩은 하지 않는다.**
-  `RecognizerPort` 인터페이스를 두고 모드별 **fake adapter**를 주입한다.
-  `if mock_mode:` 분기 금지 — 실모델 교체 시 router/service 계약이 바뀌지 않아야 한다.
-- 응답은 세 모드 모두 `CameraRecognizeResponse` = `{ candidates: RecognitionCandidate[] }`
-  - `RecognitionCandidate`: `{ food_id(null 가능), name, category(null 가능), confidence }`
-  - confidence 내림차순.
-  - photo: 후보 3~5개 / barcode: 보통 1건 / receipt: 라인별 여러 건.
-- 후보의 food_id는 seed의 foods와 매칭되게(등록 프리필에 바로 쓰이도록).
-- 표시 name은 목업 정책대로 `[MOCK]` 접두어.
+- **사진/영수증**: 실비전·OCR은 아직 없고 DB 카탈로그 추정.
+- **바코드**: 이미지에서 실제 디코딩(pyzbar) → `products.external_id` 매칭.
+  - 디코딩 실패 → 빈 candidates (엉뚱한 상품 추정 금지)
+  - 코드는 읽혔지만 미등록 → `food_id=null`, name=`미등록 상품 ({code})`
+  - 매칭 성공 → 해당 상품/식품 후보
+- `RecognizerPort` 뒤 adapter만 갈아끼우면 실모델로 교체 가능. `if mock_mode:` 금지.
+- 후보 표시 name에 `[MOCK]` 접두어를 붙이지 않는다.
 
 ## 체크포인트
 - [ ] 인식 로직이 인터페이스로 분리됨(실모델 교체 시 계약 불변)

@@ -2,12 +2,18 @@
 
 from app.domains.ingredients.recognition.fake import build_fake_recognizer_registry
 from app.domains.ingredients.recognition.port import (
+    CatalogFood,
+    CatalogProduct,
+    RecognitionCatalog,
     RecognitionHint,
     RecognitionMode,
     RecognizerPort,
 )
 
 __all__ = [
+    "CatalogFood",
+    "CatalogProduct",
+    "RecognitionCatalog",
     "RecognitionHint",
     "RecognitionMode",
     "RecognizerPort",

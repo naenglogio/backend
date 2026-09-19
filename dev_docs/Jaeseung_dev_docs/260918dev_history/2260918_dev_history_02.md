@@ -33,7 +33,7 @@ FE-4 스캔 탭(사진/바코드/영수증)이 같은 응답 스키마로 실연
 
 - `recognize_ingredient_image`: 빈 이미지 → `IMAGE_MISSING` 400
 - hint의 `food_name`으로 foods+categories 조회 → `food_id`/`category` 채움
-- 표시 name은 `[MOCK] {food_name}` (목업 정책)
+- 표시 name은 foods 이름 그대로(예: `우유`). `[MOCK]` 접두어 없음
 - confidence 내림차순 정렬
 - router: multipart `image` + form `mode`(기본 `photo`)
 
@@ -77,7 +77,20 @@ multipart: image, mode=photo|barcode|receipt
 
 - 응답은 세 모드 모두 `{ candidates: [{ food_id, name, category, confidence }] }`
 - seed 적재 후 food_id가 채워짐 → 등록 프리필 바로 가능
-- MVP 후보라서 name에 `[MOCK]` 접두어가 붙는다
+- MVP는 내부 fake adapter지만, 후보 name에는 `[MOCK]`을 붙이지 않음
+
+## 후속 (2026-09-19) — 바코드 실디코딩
+
+문제: 바코드 모드가 이미지를 읽지 않고 카탈로그에서 임의 상품을 골라
+과자 사진인데 `컬리 즉석밥` 97%가 나왔다.
+
+조치:
+- `pyzbar` + `libzbar0` + Pillow로 바코드 디코딩
+- 매칭: `products.external_id == 디코딩값`
+- 실패 시 빈 목록 / 미등록 시 `food_id=null`
+- 시드에 EAN `8809841063326` → `스낵 과자` 추가 (화면 테스트용)
+
+검증: 생성 EAN 이미지 → `스낵 과자` 매칭, 비이미지 → `[]`, 미등록 EAN → 미등록 후보.
 
 ## 다음
 

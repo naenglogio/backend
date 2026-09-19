@@ -40,7 +40,7 @@ SEED_DEVICES: list[dict[str, Any]] = [
     {"user_email": "seed.user3@example.invalid", "push_token": "MOCK-device-token-3"},
 ]
 
-SEED_CATEGORY_NAMES: list[str] = ["유제품", "채소", "가공식품", "육류", "해산물"]
+SEED_CATEGORY_NAMES: list[str] = ["유제품", "채소", "가공식품", "육류", "해산물", "과자"]
 
 SEED_FOODS: list[dict[str, Any]] = [
     {"name": "우유", "category_name": "유제품"},
@@ -55,6 +55,7 @@ SEED_FOODS: list[dict[str, Any]] = [
     {"name": "돼지고기", "category_name": "육류"},
     {"name": "고등어", "category_name": "해산물"},
     {"name": "새우", "category_name": "해산물"},
+    {"name": "과자", "category_name": "과자"},
 ]
 
 SEED_PRODUCTS: list[dict[str, Any]] = [
@@ -129,6 +130,13 @@ SEED_PRODUCTS: list[dict[str, Any]] = [
         "source": "N_MART",
         "name": "[MOCK] N마트 새우",
         "food_name": "새우",
+    },
+    # 실바코드 예시(화면 테스트용 EAN). 인식 시 external_id로 매칭된다.
+    {
+        "external_id": "8809841063326",
+        "source": "N_MART",
+        "name": "스낵 과자",
+        "food_name": "과자",
     },
     # 시나리오: 비활성 상품 — products 테이블에 is_active가 없어
     # "어떤 ingredient/프로필에도 연결되지 않은 카탈로그 행"으로 근사한다.
